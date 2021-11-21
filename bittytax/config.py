@@ -26,6 +26,8 @@ class Config(object):
     STABLECOIN_LIST = ['USDT', 'USDC', 'TUSD', 'TUSD', 'DAI', 'UST', 'MIM']
     CRYPTO_LIST = ['BTC', 'ETH', 'XRP', 'LTC', 'BCH', 'USDT']
 
+    PRICE_VIA_BTC = True
+
     FORMAT_CSV = 'CSV'
     FORMAT_EXCEL = 'EXCEL'
     FORMAT_RECAP = 'RECAP'
@@ -51,6 +53,7 @@ class Config(object):
         'fiat_list': FIAT_LIST,
         'stablecoin_list': STABLECOIN_LIST,
         'crypto_list': CRYPTO_LIST,
+        'price_via_btc': PRICE_VIA_BTC,
         'trade_asset_type': TRADE_ASSET_TYPE_PRIORITY,
         'trade_allowable_cost_type': TRADE_ALLOWABLE_COST_SPLIT,
         'show_empty_wallets': False,

@@ -67,7 +67,7 @@ class ValueAsset(object):
                                                asset, timestamp.strftime('%Y-%m-%d')))
             return self.get_latest_price(asset)
 
-        if asset == 'BTC' or asset in config.fiat_list:
+        if not config.price_via_btc or asset == 'BTC' or asset in config.fiat_list:
             asset_price_ccy, name, data_source, url = self.price_data.get_historical(asset,
                                                                                      config.ccy,
                                                                                      timestamp,
@@ -94,7 +94,7 @@ class ValueAsset(object):
     def get_latest_price(self, asset):
         asset_price_ccy = None
 
-        if asset == 'BTC' or asset in config.fiat_list:
+        if not config.price_via_btc or asset == 'BTC' or asset in config.fiat_list:
             asset_price_ccy, name, data_source = self.price_data.get_latest(asset, config.ccy)
         else:
             asset_price_btc, name, data_source = self.price_data.get_latest(asset, 'BTC')
