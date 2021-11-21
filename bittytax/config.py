@@ -23,6 +23,7 @@ class Config(object):
     CACHE_DIR = os.path.join(BITTYTAX_PATH, 'cache')
 
     FIAT_LIST = ['GBP', 'EUR', 'USD']
+    STABLECOIN_LIST = ['USDT', 'USDC', 'TUSD', 'TUSD', 'DAI', 'UST', 'MIM']
     CRYPTO_LIST = ['BTC', 'ETH', 'XRP', 'LTC', 'BCH', 'USDT']
 
     FORMAT_CSV = 'CSV'
@@ -48,6 +49,7 @@ class Config(object):
     DEFAULT_CONFIG = {
         'local_currency': 'GBP',
         'fiat_list': FIAT_LIST,
+        'stablecoin_list': STABLECOIN_LIST,
         'crypto_list': CRYPTO_LIST,
         'trade_asset_type': TRADE_ASSET_TYPE_PRIORITY,
         'trade_allowable_cost_type': TRADE_ALLOWABLE_COST_SPLIT,
@@ -92,7 +94,7 @@ class Config(object):
                 self.config[name] = default
 
         self.ccy = self.config['local_currency']
-        self.asset_priority = self.config['fiat_list'] + self.config['crypto_list']
+        self.asset_priority = self.config['fiat_list'] + self.config['stablecoin_list'] + self.config['crypto_list']
 
     def __getattr__(self, name):
         try:
