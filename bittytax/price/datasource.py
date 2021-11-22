@@ -7,10 +7,12 @@ import json
 import platform
 from decimal import Decimal
 from datetime import datetime, timedelta
+from pathlib import Path
 
 from colorama import Fore, Back
 import dateutil.parser
 import requests
+from web3 import Web3
 
 from ..version import __version__
 from ..config import config
@@ -363,3 +365,60 @@ class CoinPaprika(DataSourceBase):
                                'price': Decimal(repr(p['price'])) if p['price'] else None,
                                'url': url} for p in json_resp},
                            timestamp)
+
+class yVault(DataSourceBase):
+    def __init__(self):
+        super(yVault, self).__init__()
+
+        self.abi = self.get_abi('yVault')
+
+        self.w3 = Web3(Web3.HTTPProvider(config.web3_endpoint))
+        # self.block_number = self.w3.eth.get_block_number()
+
+        self.ids = {
+            '0x2f08119C6f07c006695E079AAFc638b8789FAf18': {
+                'symbol': 'YUSDT',
+                'name': 'yearn Tether USD'
+            }
+        }
+        self.assets = {
+            'YUSDT': {
+                'id': '0x2f08119C6f07c006695E079AAFc638b8789FAf18',
+                'name': 'yearn Tether USD'
+            }
+        }
+        # self.get_config_assets()
+
+    def get_latest(self, asset, quote, asset_id=None):
+        return None
+
+    def get_historical(self, asset, quote, timestamp, asset_id=None):
+        block_number = self.find_block(timestamp)
+        print('get_historical', asset, quote, timestamp, asset_id, block_number)
+
+        contract = self.w3.eth.contract(asset_id, abi=self.abi)
+
+        price_per_share = contract.functions.getPricePerFullShare().call(block_identifier=block_number)
+        print('price_per_share', price_per_share)
+        print('price_per_share', Web3.fromWei(price_per_share, 'ether'))
+
+        return None
+
+    def get_abi(self, contract_name):
+        path = Path(__file__).parent.joinpath('abi/%s.json' % (contract_name)).absolute()
+        file = open(path)
+        abi = json.load(file)
+        file.close()
+
+        return abi
+
+    # find first block of the given date
+    def find_block(self, date):
+        json_resp = self.get_json(
+            'https://api.etherscan.io/api?module=block&action=getblocknobytime&timestamp=%s&closest=after&apikey=%s' % (
+                int(datetime.timestamp(date)), config.etherscan_api_key
+            )
+        )
+
+        if json_resp['status'] == '1':
+            return int(json_resp['result'])

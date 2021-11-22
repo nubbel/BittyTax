@@ -67,6 +67,7 @@ setup(
         'xhtml2pdf',
         'colorama',
         'tqdm',
+        'web3'
     ],
     entry_points={
         'console_scripts': [
