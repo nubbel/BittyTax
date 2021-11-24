@@ -5,6 +5,8 @@ import os
 import atexit
 import json
 import platform
+import urllib
+
 from decimal import Decimal
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -13,6 +15,8 @@ from colorama import Fore, Back
 import dateutil.parser
 import requests
 from web3 import Web3
+
+from . import pricedata
 
 from ..version import __version__
 from ..config import config
@@ -27,7 +31,7 @@ class DataSourceBase(object):
                                                   platform.system(), platform.release())
     TIME_OUT = 30
 
-    def __init__(self):
+    def __init__(self, no_persist=False):
         self.assets = {}
         self.ids = {}
         self.prices = self.load_prices()
@@ -36,7 +40,8 @@ class DataSourceBase(object):
             if config.debug:
                 print("%sprice: %s (%s) data cache loaded" % (Fore.YELLOW, self.name(), pair))
 
-        atexit.register(self.dump_prices)
+        if not no_persist:
+            atexit.register(self.dump_prices)
 
     def name(self):
         return self.__class__.__name__
@@ -181,8 +186,8 @@ class DataSourceBase(object):
         return int(epoch)
 
 class BittyTaxAPI(DataSourceBase):
-    def __init__(self):
-        super(BittyTaxAPI, self).__init__()
+    def __init__(self, no_persist=False):
+        super(BittyTaxAPI, self).__init__(no_persist=no_persist)
         json_resp = self.get_json("https://api.bitty.tax/v1/symbols")
         self.assets = {k: {'name': v}
                        for k, v in json_resp['symbols'].items()}
@@ -209,8 +214,8 @@ class BittyTaxAPI(DataSourceBase):
                            timestamp)
 
 class Frankfurter(DataSourceBase):
-    def __init__(self):
-        super(Frankfurter, self).__init__()
+    def __init__(self, no_persist=False):
+        super(Frankfurter, self).__init__(no_persist=no_persist)
         currencies = ['EUR', 'USD', 'JPY', 'BGN', 'CYP', 'CZK', 'DKK', 'EEK', 'GBP', 'HUF',
                       'LTL', 'LVL', 'MTL', 'PLN', 'ROL', 'RON', 'SEK', 'SIT', 'SKK', 'CHF',
                       'ISK', 'NOK', 'HRK', 'RUB', 'TRL', 'TRY', 'AUD', 'BRL', 'CAD', 'CNY',
@@ -240,8 +245,8 @@ class Frankfurter(DataSourceBase):
                            timestamp)
 
 class CoinDesk(DataSourceBase):
-    def __init__(self):
-        super(CoinDesk, self).__init__()
+    def __init__(self, no_persist=False):
+        super(CoinDesk, self).__init__(no_persist=no_persist)
         self.assets = {'BTC': {'name': 'Bitcoin'}}
 
     def get_latest(self, _asset, quote, _asset_id=None):
@@ -263,8 +268,8 @@ class CoinDesk(DataSourceBase):
                                timestamp)
 
 class CryptoCompare(DataSourceBase):
-    def __init__(self):
-        super(CryptoCompare, self).__init__()
+    def __init__(self, no_persist=False):
+        super(CryptoCompare, self).__init__(no_persist=no_persist)
         json_resp = self.get_json("https://min-api.cryptocompare.com/data/all/coinlist")
         self.assets = {c[1]['Symbol'].strip().upper(): {'name': c[1]['CoinName'].strip()}
                        for c in json_resp['Data'].items()}
@@ -293,8 +298,8 @@ class CryptoCompare(DataSourceBase):
                                timestamp)
 
 class CoinGecko(DataSourceBase):
-    def __init__(self):
-        super(CoinGecko, self).__init__()
+    def __init__(self, no_persist=False):
+        super(CoinGecko, self).__init__(no_persist=no_persist)
         json_resp = self.get_json("https://api.coingecko.com/api/v3/coins/list")
         self.ids = {c['id']: {'symbol': c['symbol'].strip().upper(), 'name': c['name'].strip()}
                     for c in json_resp}
@@ -328,8 +333,8 @@ class CoinGecko(DataSourceBase):
                                timestamp)
 
 class CoinPaprika(DataSourceBase):
-    def __init__(self):
-        super(CoinPaprika, self).__init__()
+    def __init__(self, no_persist=False):
+        super(CoinPaprika, self).__init__(no_persist=no_persist)
         json_resp = self.get_json("https://api.coinpaprika.com/v1/coins")
         self.ids = {c['id']: {'symbol': c['symbol'].strip().upper(), 'name': c['name'].strip()}
                     for c in json_resp}
@@ -367,42 +372,110 @@ class CoinPaprika(DataSourceBase):
                            timestamp)
 
 class yVault(DataSourceBase):
-    def __init__(self):
-        super(yVault, self).__init__()
+    def __init__(self, no_persist=False):
+        super(yVault, self).__init__(no_persist=no_persist)
 
-        self.abi = self.get_abi('yVault')
+        self.yvault_abi = self.get_abi('yVault')
+        self.token_abi = self.get_abi('ERC20')
 
         self.w3 = Web3(Web3.HTTPProvider(config.web3_endpoint))
-        # self.block_number = self.w3.eth.get_block_number()
+        self.block_number = self.w3.eth.get_block_number()
 
         self.ids = {
             '0x2f08119C6f07c006695E079AAFc638b8789FAf18': {
                 'symbol': 'YUSDT',
                 'name': 'yearn Tether USD'
-            }
+            },
+            '0x597aD1e0c13Bfe8025993D9e79C69E1c0233522e': {
+                'symbol': 'YUSDC',
+                'name': 'yearn USD/C'
+            },
+            '0xACd43E627e64355f1861cEC6d3a6688B31a6F952': {
+                'symbol': 'YDAI',
+                'name': 'yearn DAI'
+            },
+            '0x37d19d1c4E1fa9DC47bD1eA12f742a0887eDa74a': {
+                'symbol': 'YTUSD',
+                'name': 'yearn TrueUSD'
+            },
         }
         self.assets = {
-            'YUSDT': {
-                'id': '0x2f08119C6f07c006695E079AAFc638b8789FAf18',
-                'name': 'yearn Tether USD'
+            self.ids[asset_id]['symbol']: {
+                'id': asset_id,
+                'name': self.ids[asset_id]['name']
             }
+            for asset_id in self.ids
         }
-        # self.get_config_assets()
+
+        self.price_data = pricedata.PriceData(
+            [ds for ds in config.data_source_crypto if ds != self.__class__.__name__], price_tool=True, no_persist=True)
+        self.get_config_assets()
 
     def get_latest(self, asset, quote, asset_id=None):
-        return None
+        if asset_id is None:
+            asset_id = self.assets[asset]['id']
+
+        price_per_share, token_symbol, _ = self.get_at_block(asset_id, self.block_number)        
+
+        token_price, _, _ = self.price_data.get_latest(
+            token_symbol,
+            quote,
+        )
+
+        return price_per_share * token_price
+
 
     def get_historical(self, asset, quote, timestamp, asset_id=None):
-        block_number = self.find_block(timestamp)
-        print('get_historical', asset, quote, timestamp, asset_id, block_number)
+        if not asset_id:
+            asset_id = self.assets[asset]['id']
 
-        contract = self.w3.eth.contract(asset_id, abi=self.abi)
+        block = self.find_block(timestamp)
 
-        price_per_share = contract.functions.getPricePerFullShare().call(block_identifier=block_number)
-        print('price_per_share', price_per_share)
-        print('price_per_share', Web3.fromWei(price_per_share, 'ether'))
+        price_per_share, token_symbol, token_address = self.get_at_block(asset_id, block.number)        
 
-        return None
+        token_price, token_name, token_data_source, token_url = self.price_data.get_historical(
+            token_symbol,
+            quote,
+            timestamp,
+        )
+
+        pair = self.pair(asset, quote)
+        data = {
+            'platform': 'ethereum',
+            'block': {
+                'number': block.number,
+                'timestamp': datetime.utcfromtimestamp(block.timestamp),
+            },
+            'address': asset_id,
+            'calculation': "%s = %.18g * %s" % (asset, price_per_share, token_symbol),
+            token_symbol: {
+                'name': token_name,
+                'address': token_address,
+                'data_source': token_data_source,
+                'url': token_url,
+            }
+        }
+
+        self.update_prices(pair, {
+            datetime.utcfromtimestamp(block.timestamp).strftime('%Y-%m-%d'): {
+                'price': token_price * price_per_share,
+                # TODO: IPFS
+                'url': "data:application/json,%s" % urllib.parse.quote(json.dumps(data, indent=2, default=str)),
+                'data': data,
+            }
+        }, timestamp)
+
+    def get_at_block(self, address, block_number):
+        yvault_contract = self.w3.eth.contract(address, abi=self.yvault_abi)
+
+        price_per_share = yvault_contract.functions.getPricePerFullShare().call(block_identifier=block_number)
+        token_address = yvault_contract.functions.token().call(block_identifier=block_number)
+
+        token_contract = self.w3.eth.contract(token_address, abi=self.token_abi)
+        token_symbol = token_contract.functions.symbol().call(block_identifier=block_number)
+
+        return Web3.fromWei(price_per_share, 'ether'), token_symbol, token_address
+
 
     def get_abi(self, contract_name):
         path = Path(__file__).parent.joinpath('abi/%s.json' % (contract_name)).absolute()
@@ -413,12 +486,14 @@ class yVault(DataSourceBase):
         return abi
 
     # find first block of the given date
-    def find_block(self, date):
+    def find_block(self, timestamp):
         json_resp = self.get_json(
             'https://api.etherscan.io/api?module=block&action=getblocknobytime&timestamp=%s&closest=after&apikey=%s' % (
-                int(datetime.timestamp(date)), config.etherscan_api_key
+                int(datetime.timestamp(timestamp)), config.etherscan_api_key
             )
         )
 
         if json_resp['status'] == '1':
-            return int(json_resp['result'])
+            block = self.w3.eth.get_block(int(json_resp['result']))
+
+            return block

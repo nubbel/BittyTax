@@ -7,20 +7,20 @@ from colorama import Fore
 
 from ..version import __version__
 from ..config import config
-from .datasource import DataSourceBase
+from . import datasource
 from .exceptions import UnexpectedDataSourceError
 
 class PriceData(object):
-    def __init__(self, data_sources_required, price_tool=False):
+    def __init__(self, data_sources_required, price_tool=False, no_persist=False):
         self.price_tool = price_tool
         self.data_sources = {}
 
         if not os.path.exists(config.CACHE_DIR):
             os.mkdir(config.CACHE_DIR)
 
-        for data_source_class in DataSourceBase.__subclasses__():
+        for data_source_class in datasource.DataSourceBase.__subclasses__():
             if data_source_class.__name__.upper() in [ds.upper() for ds in data_sources_required]:
-                self.data_sources[data_source_class.__name__.upper()] = data_source_class()
+                self.data_sources[data_source_class.__name__.upper()] = data_source_class(no_persist=no_persist)
 
     @staticmethod
     def data_source_priority(asset):
@@ -37,7 +37,7 @@ class PriceData(object):
                        self.data_sources[data_source.upper()].assets[asset]['name']
 
             return None, None
-        raise UnexpectedDataSourceError(data_source, DataSourceBase)
+        raise UnexpectedDataSourceError(data_source, datasource.DataSourceBase)
 
     def get_historical_ds(self, data_source, asset, quote, timestamp, no_cache=False):
         if data_source.upper() in self.data_sources:
@@ -61,12 +61,12 @@ class PriceData(object):
                            self.data_sources[data_source.upper()].prices[pair][date]['url']
                 return None, self.data_sources[data_source.upper()].assets[asset]['name'], None
             return None, None, None
-        raise UnexpectedDataSourceError(data_source, DataSourceBase)
+        raise UnexpectedDataSourceError(data_source, datasource.DataSourceBase)
 
     def get_latest(self, asset, quote):
         name = None
         for data_source in self.data_source_priority(asset):
-            price, name = self.get_latest_ds(data_source, asset, quote)
+            price, name = self.get_latest_ds(data_source, asset.upper(), quote)
             if price is not None:
                 if config.debug:
                     print("%sprice: <latest>, 1 %s=%s %s via %s (%s)" % (
@@ -91,7 +91,7 @@ class PriceData(object):
     def get_historical(self, asset, quote, timestamp, no_cache=False):
         name = None
         for data_source in self.data_source_priority(asset):
-            price, name, url = self.get_historical_ds(data_source, asset, quote, timestamp,
+            price, name, url = self.get_historical_ds(data_source, asset.upper(), quote, timestamp,
                                                       no_cache)
             if price is not None:
                 if config.debug:
