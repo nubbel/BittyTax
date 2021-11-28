@@ -7,6 +7,7 @@ import io
 import sys
 import codecs
 import platform
+import glob
 
 import colorama
 from colorama import Fore, Back
@@ -37,7 +38,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('filename',
                         type=str,
-                        nargs='?',
+                        nargs='*',
                         help="filename of transaction records, "
                              "or can read CSV data from standard input")
     parser.add_argument('-v',
@@ -156,11 +157,17 @@ def do_import(filename):
     import_records = ImportRecords()
 
     if filename:
-        try:
-            import_records.import_excel(filename)
-        except xlrd.XLRDError:
-            with io.open(filename, newline='', encoding='utf-8') as csv_file:
-                import_records.import_csv(csv_file)
+        for filename in filename:
+            pathnames = glob.glob(filename)
+            if not pathnames:
+                pathnames = [filename]
+
+            for pathname in pathnames:
+                try:
+                    import_records.import_excel(pathname)
+                except xlrd.XLRDError:
+                    with io.open(pathname, newline='', encoding='utf-8') as csv_file:
+                        import_records.import_csv(csv_file)
     else:
         if sys.version_info[0] < 3:
             import_records.import_csv(codecs.getreader('utf-8')(sys.stdin))
