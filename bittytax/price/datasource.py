@@ -371,6 +371,78 @@ class CoinPaprika(DataSourceBase):
                                'url': url} for p in json_resp},
                            timestamp)
 
+class Kraken(DataSourceBase):
+    def __init__(self, no_persist=False):
+        super(Kraken, self).__init__(no_persist=no_persist)
+
+        self.ids = {
+            'ETH2.SETH': {
+                'symbol': 'ETH2',
+                'name': 'Ethereum 2.0'
+            }
+        }
+
+        self.assets = {
+            self.ids[asset_id]['symbol']: {
+                'id': asset_id,
+                'name': self.ids[asset_id]['name']
+            }
+            for asset_id in self.ids
+        }
+
+        self.price_data = pricedata.PriceData(
+            [ds for ds in config.data_source_crypto if ds != self.__class__.__name__], price_tool=True, no_persist=True)
+
+        self.get_config_assets()
+
+    def get_latest(self, asset, quote, asset_id=None):
+        if asset_id is None:
+            asset_id = self.assets[asset]['id']
+
+        url = "https://api.kraken.com/0/public/Ticker?pair=ETH2.SETH"
+
+        json_resp = self.get_json(url)
+
+        if 'result' in json_resp:
+            eth_price, _, _ = self.price_data.get_latest(
+                'ETH',
+                quote,
+            )
+
+            if not eth_price:
+                return
+
+            return Decimal(json_resp['result']['ETH2.SETH']['c'][0]) * eth_price
+
+    def get_historical(self, asset, quote, timestamp, asset_id=None):
+        if asset_id is None:
+            asset_id = self.assets[asset]['id']
+
+        url = "https://api.kraken.com/0/public/OHLC?pair=ETH2.SETH&interval=1440&since=%d" % (
+            int(datetime.timestamp(timestamp)) - 86400 # make sure requested timestamp is included
+        )
+        json_resp = self.get_json(url)
+
+        if 'result' in json_resp:
+            eth_price, _, eth_data_source, eth_url = self.price_data.get_historical(
+                'ETH',
+                quote,
+                timestamp,
+            )
+
+            if not eth_price:
+                return
+
+            pair = self.pair(asset, quote)
+            self.update_prices(pair,
+                               {datetime.utcfromtimestamp(ohlc[0]).strftime('%Y-%m-%d'): {
+                                   'price': Decimal(ohlc[1]) * eth_price,
+                                   'url': url,
+                                   'eth_data_source': eth_data_source,
+                                   'eth_url': eth_url
+                                } for ohlc in json_resp['result']['ETH2.SETH']},
+                               timestamp)
+
 class yVault(DataSourceBase):
     def __init__(self, no_persist=False):
         super(yVault, self).__init__(no_persist=no_persist)
