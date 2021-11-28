@@ -135,7 +135,7 @@ def parse_binance_deposits_withdrawals_cash(data_row, _parser, **kwargs):
     if "deposit" in kwargs['filename'].lower():
         data_row.t_record = TransactionOutRecord(TransactionOutRecord.TYPE_DEPOSIT,
                                                  data_row.timestamp,
-                                                 buy_quantity=row_dict['Amount'],
+                                                 buy_quantity=row_dict['Indicated Amount'],
                                                  buy_asset=row_dict['Coin'],
                                                  fee_quantity=row_dict['Fee'],
                                                  fee_asset=row_dict['Coin'],
