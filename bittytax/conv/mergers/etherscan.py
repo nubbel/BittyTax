@@ -132,6 +132,12 @@ def do_etherscan_multi_sell(t_ins, t_outs, data_row):
             Fore.YELLOW,
             TransactionOutRecord.format_quantity(buy_quantity), buy_asset))
 
+    for t_out in t_outs:
+        if (t_out.t_record.sell_quantity == 0):
+            t_out.t_record = None
+
+    t_outs[:] = [t_out for t_out in t_outs if t_out.t_record]
+
     for cnt, t_out in enumerate(t_outs):
         if cnt < len(t_outs) - 1:
             split_buy_quantity = (buy_quantity / len(t_outs)).quantize(PRECISION)
@@ -166,6 +172,13 @@ def do_etherscan_multi_buy(t_ins, t_outs, data_row):
         sys.stderr.write("%smerge:     sell_quantity=%s sell_asset=%s\n" % (
             Fore.YELLOW,
             TransactionOutRecord.format_quantity(sell_quantity), sell_asset))
+
+
+    for t_in in t_ins:
+        if (t_in.t_record.sell_quantity == 0):
+            t_in.t_record = None
+
+    t_ins[:] = [t_in for t_in in t_ins if t_in.t_record]
 
     for cnt, t_in in enumerate(t_ins):
         if cnt < len(t_ins) - 1:
