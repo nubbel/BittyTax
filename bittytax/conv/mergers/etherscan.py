@@ -17,7 +17,23 @@ from ..parsers.etherscan import etherscan_txns, etherscan_tokens, get_note
 PRECISION = Decimal('0.' + '0' * 18)
 
 def merge_etherscan(data_files):
-    return do_merge_etherscan(data_files, [])
+    return do_merge_etherscan(data_files, {
+        # SnowSwap StakingRewards
+        '0x86d0e7ad012bf743b660235a531dfc45608f4dc5': [
+            # SNOW
+            '0xfe9a29ab92522d14fc65880d817214261d8479ae'
+        ], 
+        # Bancor StakingRewards
+        '0x457fe44e832181e1d3ecee0fc5be72cd9b36859f':[
+            # vBNT
+            '0x48fb253446873234f2febbf9bdeaa72d9d387f94'
+        ], 
+        # Bancor StakingRewards
+        '0xb443dea978b39178cb05ae005074227a4390dfce':[
+            # vBNT
+            '0x48fb253446873234f2febbf9bdeaa72d9d387f94'
+        ],
+    })
 
 def do_merge_etherscan(data_files, staking_addresses):
     merge = False
@@ -104,19 +120,23 @@ def output_records(data_row, t_ins, t_outs):
             Fore.YELLOW, '*' if data_row is t_out else '', t_out.t_record))
 
 def method_handling(t_ins, data_row, staking_addresses):
-    if data_row.row_dict.get('Method') in ("Enter Staking", "Leave Staking", "Deposit", "Withdraw"):
-        if t_ins:
-            staking = [t for t in t_ins if t.row_dict['ContractAddress'] in staking_addresses
-                       and t.row_dict['From'] != data_row.row_dict['To']]
-            if staking:
-                if len(staking) == 1:
-                    staking[0].t_record.t_type = TransactionOutRecord.TYPE_STAKING
-                    t_ins.remove(staking[0])
+    if not t_ins:
+        return
 
-                    if config.debug:
-                        sys.stderr.write("%smerge:     staking\n" % (Fore.YELLOW))
-                else:
-                    raise Exception
+    t_rewards = [t for t in t_ins if
+        data_row.row_dict.get('To') in staking_addresses and
+        t.row_dict['ContractAddress'] in staking_addresses[data_row.row_dict.get('To')]]
+
+    if not t_rewards and 'reward' in data_row.row_dict.get('Method').lower():
+        sys.stderr.write("%sWARNING%s Potential missing staking reward for Txhash: %s (address %s)\n" % (
+            Back.YELLOW+Fore.BLACK, Back.RESET+Fore.YELLOW, data_row.row_dict['Txhash'], data_row.row_dict['To']))
+
+    for t_reward in t_rewards:
+        t_reward.t_record.t_type = TransactionOutRecord.TYPE_STAKING
+        t_ins.remove(t_reward)
+
+        if config.debug:
+            sys.stderr.write("%smerge:     staking\n" % (Fore.YELLOW))
 
 def do_etherscan_multi_sell(t_ins, t_outs, data_row):
     if config.debug:
