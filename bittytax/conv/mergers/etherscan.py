@@ -12,7 +12,7 @@ from ...config import config
 from ..out_record import TransactionOutRecord
 from ..datamerge import DataMerge
 from ..exceptions import UnexpectedContentError
-from ..parsers.etherscan import etherscan_txns, etherscan_tokens, get_note
+from ..parsers.etherscan import etherscan_txns, etherscan_tokens, etherscan_internal_txns, get_note
 
 PRECISION = Decimal('0.' + '0' * 18)
 
@@ -42,13 +42,19 @@ def do_merge_etherscan(data_files, staking_addresses):
         t_tokens = find_tx_tokens(data_files['tokens'].data_rows,
                                   data_row.row_dict['Txhash'])
 
+        t_internal_txns = find_tx_tokens(data_files['internal_txns'].data_rows,
+                                   data_row.row_dict['Txhash'])
+
+        if t_internal_txns:
+            merge_internal_tx(data_row, t_internal_txns)
+
         if t_tokens:
             if config.debug:
                 sys.stderr.write("%smerge: txn:  %s\n" % (Fore.GREEN, data_row))
 
             for t in t_tokens:
                 if config.debug:
-                    sys.stderr.write("%smerge: token:%s\n" % (Fore.GREEN, t))
+                    sys.stderr.write("%smerge: token:%s\n" % (Fore.GREEN, t.t_record))
 
                 data_row.parsed = True
 
@@ -58,15 +64,10 @@ def do_merge_etherscan(data_files, staking_addresses):
 
             continue
 
-        t_ins = [t for t in t_tokens if t.t_record and
+        t_ins = [t for t in t_tokens + [data_row] if t.t_record and
                  t.t_record.t_type == TransactionOutRecord.TYPE_DEPOSIT]
-        t_outs = [t for t in t_tokens if t.t_record and
+        t_outs = [t for t in t_tokens + [data_row] if t.t_record and
                   t.t_record.t_type == TransactionOutRecord.TYPE_WITHDRAWAL]
-
-        if data_row.t_record.t_type == TransactionOutRecord.TYPE_DEPOSIT:
-            t_ins.append(data_row)
-        elif data_row.t_record.t_type == TransactionOutRecord.TYPE_WITHDRAWAL:
-            t_outs.append(data_row)
 
         if config.debug:
             output_records(data_row, t_ins, t_outs)
@@ -101,6 +102,41 @@ def do_merge_etherscan(data_files, staking_addresses):
             output_records(data_row, t_ins_orig, t_outs)
 
     return merge
+
+def merge_internal_tx(data_row, t_internal_txns):
+    quantity = Decimal(0)
+    if data_row.t_record.buy_quantity:
+        quantity += data_row.t_record.buy_quantity
+    if data_row.t_record.sell_quantity:
+        quantity -= data_row.t_record.sell_quantity
+
+    # this is ususally an ETH refund when providing liquidity to an ETH/TOKEN pool
+    for t in t_internal_txns:
+        if t.t_record.t_type == TransactionOutRecord.TYPE_DEPOSIT:
+            quantity += t.t_record.buy_quantity
+        elif t.t_record.t_type == TransactionOutRecord.TYPE_WITHDRAWAL:
+            quantity -= t.t_record.sell_quantity
+
+        t.t_record = None
+
+    if quantity > 0:
+        data_row.t_record.t_type = TransactionOutRecord.TYPE_DEPOSIT
+        data_row.t_record.buy_asset = 'ETH'
+        data_row.t_record.buy_quantity = quantity
+        data_row.t_record.sell_asset = ''
+        data_row.t_record.sell_quantity = None
+    elif quantity < 0:
+        data_row.t_record.t_type = TransactionOutRecord.TYPE_WITHDRAWAL
+        data_row.t_record.sell_asset = 'ETH'
+        data_row.t_record.sell_quantity = abs(quantity)
+        data_row.t_record.buy_asset = ''
+        data_row.t_record.buy_quantity = None
+    else:
+        data_row.t_record.t_type = TransactionOutRecord.TYPE_SPEND
+        data_row.t_record.sell_asset = 'ETH'
+        data_row.t_record.sell_quantity = quantity
+        data_row.t_record.buy_asset = ''
+        data_row.t_record.buy_quantity = None
 
 def find_tx_tokens(data_rows, tx_hash):
     return [data_row for data_row in data_rows
@@ -177,7 +213,12 @@ def do_etherscan_multi_sell(t_ins, t_outs, data_row):
         t_out.t_record.note = get_note(data_row.row_dict)
 
     # Remove TR for buy now it's been added to each sell
-    t_ins[0].t_record = None
+    if t_ins[0] == data_row:
+        data_row.t_record.t_type = TransactionOutRecord.TYPE_SPEND
+        data_row.t_record.buy_quantity = None
+        data_row.t_record.buy_asset = ''
+    else:
+        t_ins[0].t_record = None
 
 def do_etherscan_multi_buy(t_ins, t_outs, data_row):
     if config.debug:
@@ -195,7 +236,7 @@ def do_etherscan_multi_buy(t_ins, t_outs, data_row):
 
 
     for t_in in t_ins:
-        if (t_in.t_record.sell_quantity == 0):
+        if (t_in.t_record.buy_quantity == 0):
             t_in.t_record = None
 
     t_ins[:] = [t_in for t_in in t_ins if t_in.t_record]
@@ -219,7 +260,12 @@ def do_etherscan_multi_buy(t_ins, t_outs, data_row):
         t_in.t_record.note = get_note(data_row.row_dict)
 
     # Remove TR for sell now it's been added to each buy
-    t_outs[0].t_record = None
+    if t_outs[0] == data_row:
+        data_row.t_record.t_type = TransactionOutRecord.TYPE_SPEND
+        data_row.t_record.sell_quantity = None
+        data_row.t_record.sell_asset = ''
+    else:
+        t_outs[0].t_record = None
 
 def do_fee_split(t_tokens, data_row):
     if config.debug:
@@ -256,5 +302,5 @@ def do_fee_split(t_tokens, data_row):
             data_row.t_record.fee_asset = ''
 
 DataMerge("Etherscan fees & multi-token transactions",
-          {'txns': etherscan_txns, 'tokens': etherscan_tokens},
+          {'txns': etherscan_txns, 'tokens': etherscan_tokens, 'internal_txns': etherscan_internal_txns},
           merge_etherscan)

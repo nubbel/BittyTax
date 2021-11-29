@@ -3,6 +3,7 @@
 
 from decimal import Decimal
 
+from ...config import config
 from ..out_record import TransactionOutRecord
 from ..dataparser import DataParser
 from ..exceptions import DataFilenameError
@@ -19,20 +20,20 @@ TOKENS = {
     '0xced67a187b923f0e5ebcc77c7f2f7da20099e378': 'pSLP-yvBOOST-ETH'
 }
 
-def parse_etherscan(data_row, _parser, **_kwargs):
+def parse_etherscan(data_row, _parser, **kwargs):
     row_dict = data_row.row_dict
     data_row.timestamp = DataParser.parse_timestamp(int(row_dict['UnixTimestamp']))
 
-    if row_dict['Status'] != '':
-        # Failed txns should not have a Value_OUT
-        row_dict['Value_OUT(ETH)'] = 0
+    if row_dict['Status'] != '' and row_dict['Status'] != 'Error(1)':
+        # Failed transaction
+        row_dict['Value_IN(ETH)'] = row_dict['Value_OUT(ETH)'] = 0
 
     if Decimal(row_dict['Value_IN(ETH)']) > 0:
         data_row.t_record = TransactionOutRecord(TransactionOutRecord.TYPE_DEPOSIT,
                                                  data_row.timestamp,
                                                  buy_quantity=row_dict['Value_IN(ETH)'],
                                                  buy_asset="ETH",
-                                                 wallet=WALLET,
+                                                 wallet=get_wallet(row_dict['To']),
                                                  note=get_note(row_dict))
     elif Decimal(row_dict['Value_OUT(ETH)']) > 0:
         data_row.t_record = TransactionOutRecord(TransactionOutRecord.TYPE_WITHDRAWAL,
@@ -41,7 +42,7 @@ def parse_etherscan(data_row, _parser, **_kwargs):
                                                  sell_asset="ETH",
                                                  fee_quantity=row_dict['TxnFee(ETH)'],
                                                  fee_asset="ETH",
-                                                 wallet=WALLET,
+                                                 wallet=get_wallet(row_dict['From']),
                                                  note=get_note(row_dict))
     else:
         data_row.t_record = TransactionOutRecord(TransactionOutRecord.TYPE_SPEND,
@@ -50,13 +51,13 @@ def parse_etherscan(data_row, _parser, **_kwargs):
                                                  sell_asset="ETH",
                                                  fee_quantity=row_dict['TxnFee(ETH)'],
                                                  fee_asset="ETH",
-                                                 wallet=WALLET,
+                                                 wallet=get_wallet(row_dict['From']),
                                                  note=get_note(row_dict))
 
 def get_note(row_dict):
     if row_dict['Status'] != '':
         if row_dict.get('Method'):
-            return "Failure (%s)" % row_dict['Method']
+            return "%s(%s)" % ('Failure' if row_dict['Status'] == 'Error(1)' else 'Cancelled', row_dict['Method'])
         return "Failure"
 
     if row_dict.get('Method'):
@@ -64,22 +65,26 @@ def get_note(row_dict):
 
     return row_dict.get('PrivateNote', '')
 
-def parse_etherscan_internal(data_row, _parser, **_kwargs):
+def parse_etherscan_internal(data_row, _parser, **kwargs):
     row_dict = data_row.row_dict
     data_row.timestamp = DataParser.parse_timestamp(int(row_dict['UnixTimestamp']))
 
-    if Decimal(row_dict['Value_IN(ETH)']) > 0:
+    # failed internal transaction
+    if row_dict['Status'] != '0':
+        row_dict['Value_IN(ETH)'] = row_dict['Value_OUT(ETH)'] = '0'
+
+    if row_dict['TxTo'].lower() in kwargs['filename'].lower():
         data_row.t_record = TransactionOutRecord(TransactionOutRecord.TYPE_DEPOSIT,
                                                  data_row.timestamp,
                                                  buy_quantity=row_dict['Value_IN(ETH)'],
                                                  buy_asset="ETH",
-                                                 wallet=WALLET)
-    elif Decimal(row_dict['Value_OUT(ETH)']) > 0:
+                                                 wallet=get_wallet(row_dict['TxTo']))
+    elif row_dict['From'].lower() in kwargs['filename'].lower():
         data_row.t_record = TransactionOutRecord(TransactionOutRecord.TYPE_WITHDRAWAL,
                                                  data_row.timestamp,
                                                  sell_quantity=row_dict['Value_OUT(ETH)'],
                                                  sell_asset="ETH",
-                                                 wallet=WALLET)
+                                                 wallet=get_wallet(row_dict['From']))
 
 def parse_etherscan_tokens(data_row, _parser, **kwargs):
     row_dict = data_row.row_dict
@@ -92,13 +97,13 @@ def parse_etherscan_tokens(data_row, _parser, **kwargs):
                                                  data_row.timestamp,
                                                  buy_quantity=row_dict['Value'].replace(',', ''),
                                                  buy_asset=asset,
-                                                 wallet=WALLET)
+                                                 wallet=get_wallet(row_dict['To']))
     elif row_dict['From'].lower() in kwargs['filename'].lower():
         data_row.t_record = TransactionOutRecord(TransactionOutRecord.TYPE_WITHDRAWAL,
                                                  data_row.timestamp,
                                                  sell_quantity=row_dict['Value'].replace(',', ''),
                                                  sell_asset=asset,
-                                                 wallet=WALLET)
+                                                 wallet=get_wallet(row_dict['From']))
     else:
         raise DataFilenameError(kwargs['filename'], "Ethereum address")
 
@@ -113,15 +118,22 @@ def parse_etherscan_nfts(data_row, _parser, **kwargs):
                                                  data_row.timestamp,
                                                  buy_quantity=1,
                                                  buy_asset=asset,
-                                                 wallet=WALLET)
+                                                 wallet=get_wallet(row_dict['To']))
     elif row_dict['From'].lower() in kwargs['filename'].lower():
         data_row.t_record = TransactionOutRecord(TransactionOutRecord.TYPE_WITHDRAWAL,
                                                  data_row.timestamp,
                                                  sell_quantity=1,
                                                  sell_asset=asset,
-                                                 wallet=WALLET)
+                                                 wallet=get_wallet(row_dict['From']))
     else:
         raise DataFilenameError(kwargs['filename'], "Ethereum address")
+
+def get_wallet(address):
+    if address.lower() in config.ethereum_wallets:
+        return config.ethereum_wallets[address.lower()]
+    
+    return WALLET
+
 
 etherscan_txns = DataParser(
         DataParser.TYPE_EXPLORER,
@@ -157,7 +169,7 @@ DataParser(DataParser.TYPE_EXPLORER,
            worksheet_name="Etherscan",
            row_handler=parse_etherscan)
 
-DataParser(DataParser.TYPE_EXPLORER,
+etherscan_internal_txns = DataParser(DataParser.TYPE_EXPLORER,
            "Etherscan (ETH Internal Transactions)",
            ['Txhash', 'Blockno', 'UnixTimestamp', 'DateTime', 'ParentTxFrom', 'ParentTxTo',
             'ParentTxETH_Value', 'From', 'TxTo', 'ContractAddress', 'Value_IN(ETH)',
