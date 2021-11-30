@@ -21,17 +21,32 @@ def merge_etherscan(data_files):
         # SnowSwap StakingRewards
         '0x86d0e7ad012bf743b660235a531dfc45608f4dc5': [
             # SNOW
-            '0xfe9a29ab92522d14fc65880d817214261d8479ae'
+            '0xfe9a29ab92522d14fc65880d817214261d8479ae',
         ], 
         # Bancor StakingRewards
         '0x457fe44e832181e1d3ecee0fc5be72cd9b36859f':[
             # vBNT
-            '0x48fb253446873234f2febbf9bdeaa72d9d387f94'
+            '0x48fb253446873234f2febbf9bdeaa72d9d387f94',
         ], 
         # Bancor StakingRewards
         '0xb443dea978b39178cb05ae005074227a4390dfce':[
             # vBNT
-            '0x48fb253446873234f2febbf9bdeaa72d9d387f94'
+            '0x48fb253446873234f2febbf9bdeaa72d9d387f94',
+        ],
+        # Ampleforth Beehive V1 Geyser (Uniswap ETH-AMPL)
+        '0x23796bc856ed786dcc505984fd538f91dad3194a': [
+            # AMPL
+            '0xd46ba6d942050d489dbd938a2c909a5d5039a161',
+        ],
+        # ETH/DAI pool on Uniswap V2
+        '0xa1484c3aa22a66c62b77e0ae78e15258bd0cb711': [
+            # UNI
+            '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984',
+        ],
+        # Benchmark
+        '0x6544b1cd2d28c6c53b52a1ffb8e547740e426b33': [
+            # MARK
+            '0x67c597624b17b16fb77959217360b7cd18284253',
         ],
     })
 
