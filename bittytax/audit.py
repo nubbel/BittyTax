@@ -7,6 +7,9 @@ from decimal import Decimal
 from colorama import Fore, Back, Style
 from tqdm import tqdm
 
+from .transactions import Buy
+from .record import TransactionRecord as TR
+
 from .config import config
 
 class AuditRecords(object):
@@ -18,20 +21,51 @@ class AuditRecords(object):
         if config.debug:
             print("%saudit transaction records" % Fore.CYAN)
 
-        for tr in tqdm(transaction_records,
-                       unit='tr',
-                       desc="%saudit transaction records%s" % (Fore.CYAN, Fore.GREEN),
-                       disable=bool(config.debug or not sys.stdout.isatty())):
+        pbar = tqdm(total=len(transaction_records),
+                unit='tr',
+                desc="%saudit transaction records%s" % (Fore.CYAN, Fore.GREEN),
+                disable=bool(config.debug or not sys.stdout.isatty()))
+
+        index = 0
+        while index < len(transaction_records):
+            tr = transaction_records[index]
+
             if config.debug:
                 print("%saudit: TR %s" % (Fore.MAGENTA, tr))
             if tr.buy:
                 self._add_tokens(tr.wallet, tr.buy.asset, tr.buy.quantity)
 
             if tr.sell:
-                self._subtract_tokens(tr.wallet, tr.sell.asset, tr.sell.quantity)
+                missing_quantity = self._subtract_tokens(tr.wallet, tr.sell.asset, tr.sell.quantity)
+
+                if missing_quantity:
+                    buy = Buy(TR.TYPE_INCOME, missing_quantity, tr.sell.asset, None)
+                    rebase = TR(TR.TYPE_INCOME, buy, None, None, tr.wallet, tr.timestamp, 'Rebase')
+                    rebase.tid = [tr.tid[0], -1]
+
+                    # insert rebase TR just before the current TR
+                    transaction_records.insert(index, rebase)
+                    pbar.total += 1
+                    index += 1
+
+                    # clear balance
+                    self.wallets[tr.wallet][tr.sell.asset] = Decimal(0)
+
+                    if config.debug:
+                        print("%saudit:   %s:%s=%s (+%s rebase)" %(
+                            Fore.GREEN,
+                            tr.wallet,
+                            tr.sell.asset,
+                            '{:0,f}'.format(self.wallets[tr.wallet][tr.sell.asset].normalize()),
+                            '{:0,f}'.format(missing_quantity.normalize())))
 
             if tr.fee:
                 self._subtract_tokens(tr.wallet, tr.fee.asset, tr.fee.quantity)
+
+            pbar.update(1)
+            index += 1
+
+        pbar.close()
 
         if config.debug:
             print("%saudit: final balances by wallet" % Fore.CYAN)
@@ -98,10 +132,14 @@ class AuditRecords(object):
                 '{:0,f}'.format(self.wallets[wallet][asset].normalize()),
                 '{:0,f}'.format(quantity.normalize())))
 
-        if self.wallets[wallet][asset] < 0 and asset not in config.fiat_list:
-            tqdm.write("%sWARNING%s Balance at %s:%s is negative %s" % (
-                Back.YELLOW+Fore.BLACK, Back.RESET+Fore.YELLOW,
-                wallet, asset, '{:0,f}'.format(self.wallets[wallet][asset].normalize())))
+        if self.wallets[wallet][asset] < 0: 
+            if asset in config.rebase_token_list:
+                return -self.wallets[wallet][asset]
+
+            if asset not in config.fiat_list:
+                tqdm.write("%sWARNING%s Balance at %s:%s is negative %s" % (
+                    Back.YELLOW+Fore.BLACK, Back.RESET+Fore.YELLOW,
+                    wallet, asset, '{:0,f}'.format(self.wallets[wallet][asset].normalize())))
 
     def compare_pools(self, holdings):
         passed = True
