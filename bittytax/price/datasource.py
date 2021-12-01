@@ -470,6 +470,10 @@ class yVault(DataSourceBase):
                 'symbol': 'YTUSD',
                 'name': 'yearn TrueUSD'
             },
+            '0x9cA85572E6A3EbF24dEDd195623F188735A5179f': {
+                'symbol': 'Y3CRV',
+                'name': 'yearn Curve.fi DAI/USDC/USDT',
+            },
         }
         self.assets = {
             self.ids[asset_id]['symbol']: {
