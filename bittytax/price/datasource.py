@@ -453,35 +453,7 @@ class yVault(DataSourceBase):
         self.w3 = Web3(Web3.HTTPProvider(config.web3_endpoint))
         self.block_number = self.w3.eth.get_block_number()
 
-        self.ids = {
-            '0x2f08119C6f07c006695E079AAFc638b8789FAf18': {
-                'symbol': 'YUSDT',
-                'name': 'yearn Tether USD'
-            },
-            '0x597aD1e0c13Bfe8025993D9e79C69E1c0233522e': {
-                'symbol': 'YUSDC',
-                'name': 'yearn USD/C'
-            },
-            '0xACd43E627e64355f1861cEC6d3a6688B31a6F952': {
-                'symbol': 'YDAI',
-                'name': 'yearn DAI'
-            },
-            '0x37d19d1c4E1fa9DC47bD1eA12f742a0887eDa74a': {
-                'symbol': 'YTUSD',
-                'name': 'yearn TrueUSD'
-            },
-            '0x9cA85572E6A3EbF24dEDd195623F188735A5179f': {
-                'symbol': 'Y3CRV',
-                'name': 'yearn Curve.fi DAI/USDC/USDT',
-            },
-        }
-        self.assets = {
-            self.ids[asset_id]['symbol']: {
-                'id': asset_id,
-                'name': self.ids[asset_id]['name']
-            }
-            for asset_id in self.ids
-        }
+        self.load_vaults_info()
 
         self.price_data = pricedata.PriceData(
             [ds for ds in config.data_source_crypto if ds != self.__class__.__name__], price_tool=True, no_persist=True)
@@ -545,12 +517,8 @@ class yVault(DataSourceBase):
         yvault_contract = self.w3.eth.contract(address, abi=self.yvault_abi)
 
         price_per_share = yvault_contract.functions.getPricePerFullShare().call(block_identifier=block_number)
-        token_address = yvault_contract.functions.token().call(block_identifier=block_number)
 
-        token_contract = self.w3.eth.contract(token_address, abi=self.token_abi)
-        token_symbol = token_contract.functions.symbol().call(block_identifier=block_number)
-
-        return Web3.fromWei(price_per_share, 'ether'), token_symbol, token_address
+        return Web3.fromWei(price_per_share, 'ether'), self.ids[address]['token_symbol'], self.ids[address]['token_address']
 
 
     def get_abi(self, contract_name):
@@ -573,6 +541,76 @@ class yVault(DataSourceBase):
             block = self.w3.eth.get_block(int(json_resp['result']))
 
             return block
+
+    def load_vaults_info(self, load_all=False):
+        # this works, but is very slow :(
+        if load_all:
+            # YRegistry: https://etherscan.io/address/0x3eE41C098f9666ed2eA246f4D2558010e59d63A0
+            yregistry = self.w3.eth.contract('0x3eE41C098f9666ed2eA246f4D2558010e59d63A0', abi=self.get_abi('YRegistry'))
+
+            yvaults = yregistry.functions.getVaults().call()
+            for vault_address in yvaults:
+                _, token_address, _, is_wrapped, is_delegated  = yregistry.functions.getVaultInfo(vault_address).call()
+
+                if is_wrapped or is_delegated:
+                    # skip these, because I don't know what wrapped/delegated means :)
+                    continue
+
+                vault_contract = self.w3.eth.contract(vault_address, abi=self.yvault_abi)
+            
+                symbol = vault_contract.functions.symbol().call()
+                name = vault_contract.functions.name().call()
+
+                token_contract = self.w3.eth.contract(token_address, abi=self.token_abi)
+                token_symbol = token_contract.functions.symbol().call()
+
+                self.ids[vault_address] = {
+                    'symbol': symbol,
+                    'name': name,
+                    'token_address': token_address,
+                    'token_symbol': token_symbol,
+                }
+        else:
+            self.ids = {
+                '0x2f08119C6f07c006695E079AAFc638b8789FAf18': {
+                    'symbol': 'yUSDT',
+                    'name': 'yearn Tether USD',
+                    'token_address': '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+                    'token_symbol': 'USDT',
+                },
+                '0x597aD1e0c13Bfe8025993D9e79C69E1c0233522e': {
+                    'symbol': 'yUSDC',
+                    'name': 'yearn USD/C',
+                    'token_address': '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+                    'token_symbol': 'USDC',
+                },
+                '0xACd43E627e64355f1861cEC6d3a6688B31a6F952': {
+                    'symbol': 'yDAI',
+                    'name': 'yearn DAI',
+                    'token_address': '0x6B175474E89094C44Da98b954EedeAC495271d0F',
+                    'token_symbol': 'DAI',
+                },
+                '0x37d19d1c4E1fa9DC47bD1eA12f742a0887eDa74a': {
+                    'symbol': 'yTUSD',
+                    'name': 'yearn TrueUSD',
+                    'token_address': '0x0000000000085d4780B73119b644AE5ecd22b376',
+                    'token_symbol': 'TUSD',
+                },
+                '0x9cA85572E6A3EbF24dEDd195623F188735A5179f': {
+                    'symbol': 'y3Crv',
+                    'name': 'yearn Curve.fi DAI/USDC/USDT',
+                    'token_address': '0x6c3F90f043a72FA612cbac8115EE7e52BDe6E490',
+                    'token_symbol': '3Crv',
+                },
+            }
+
+        self.assets = {
+            self.ids[asset_id]['symbol'].upper(): {
+                'id': asset_id,
+                'name': self.ids[asset_id]['name']
+            }
+            for asset_id in self.ids
+        }
 
 class Blockscout(DataSourceBase):
     def __init__(self, no_persist=False):
