@@ -573,3 +573,47 @@ class yVault(DataSourceBase):
             block = self.w3.eth.get_block(int(json_resp['result']))
 
             return block
+
+class Blockscout(DataSourceBase):
+    def __init__(self, no_persist=False):
+        super(Blockscout, self).__init__(no_persist=no_persist)
+
+        self.fiat_price_data = pricedata.PriceData(config.data_source_fiat, price_tool=True, no_persist=True)
+
+        self.ids = {
+            'xdai': {
+                'symbol': 'XDAI',
+                'name': 'xDAI'
+            },
+        }
+        self.assets = {
+            self.ids[asset_id]['symbol']: {
+                'id': asset_id,
+                'name': self.ids[asset_id]['name']
+            }
+            for asset_id in self.ids
+        }
+
+    def get_latest(self, asset, quote, asset_id=None):
+        if asset.lower() != 'xdai':
+            None
+
+        url = "https://blockscout.com/xdai/mainnet/api?module=stats&action=coinprice"
+
+        json_resp = self.get_json(url)
+
+        if 'result' in json_resp:
+            usd_price = Decimal(json_resp['result']['coin_usd'])
+
+            if quote == 'USD':
+                return usd_price
+            
+            usd_in_quote, _, _ =  self.fiat_price_data.get_latest('USD', quote)
+
+            return usd_price * usd_in_quote
+
+        return
+
+    def get_historical(self, asset, quote, timestamp, asset_id=None):
+        # only serve from cache
+        None
