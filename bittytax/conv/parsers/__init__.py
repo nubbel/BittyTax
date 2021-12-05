@@ -45,4 +45,5 @@ from . import trezor
 from . import trezorsuite
 from . import uphold
 from . import wirex
+from . import yoroi
 from . import zerion
