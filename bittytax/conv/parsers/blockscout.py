@@ -3,7 +3,6 @@
 
 from decimal import Decimal
 
-from bittytax.conv.parsers.etherscan import TOKENS
 from bittytax.price.datasource import Blockscout
 
 from ...config import config
