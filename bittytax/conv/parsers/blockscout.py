@@ -12,8 +12,24 @@ from ..dataparser import DataParser
 
 WALLET = 'xDAI'
 
-XDAI_FAUCET = '0x97aae423c9a1bc9cf2d81f9f1299b117a7b01136'
-TOKENS = {}
+TOKENS = {
+    '0x4505b262dc053998c10685dc5f9098af8ae5c8ad': 'HNY-WXDAI-LP',
+    '0x298c7326a6e4a6108b88520f285c7dc89403347d': 'HNY-STAKE-LP',
+    '0x9e8e5e4a0900fe4634c02aaf0f130cfb93c53fbc': 'XCOMB-WXDAI-LP',
+    '0x50a4867aee9cafd6ddc84de3ce59df027cb29084': 'AGVE-HNY-LP',
+    '0x159eb41b54ae70d912f3e426bfdfa19888faa807': 'HNY-COLD-LP',
+}
+
+XDAI_FAUCET = '0x97AAE423C9A1Bc9cf2D81f9f1299b117A7b01136'
+
+TOKEN_AIRDROPS = {
+    '0x967ebb4343c442d19a47b9196d121bd600600911': {
+        'desc': 'Honey Faucet'
+    },
+    '0xdd36008685108afafc11f88bbc66c39a851df843': {
+        'desc': 'xCOMB Airdrop'
+    },
+}
 
 blockscout = Blockscout()
 
@@ -41,12 +57,19 @@ def parse_blockscout(data_row, _parser, **kwargs):
                         data_row.timestamp)
 
     if row_dict['Type'] == 'IN':
-        data_row.t_record = TransactionOutRecord(TransactionOutRecord.TYPE_DEPOSIT,
+        if row_dict['FromAddress'] == XDAI_FAUCET:
+            t_type = TransactionOutRecord.TYPE_AIRDROP 
+            note = 'xDAI Faucet'
+        else:
+             t_type = TransactionOutRecord.TYPE_DEPOSIT
+             note = get_note(row_dict)
+
+        data_row.t_record = TransactionOutRecord(t_type,
                                                  data_row.timestamp,
                                                  buy_quantity=quantity,
                                                  buy_asset="xDAI",
                                                  wallet=get_wallet(row_dict['ToAddress']),
-                                                 note=get_note(row_dict))
+                                                 note=note)
     elif row_dict['Type'] == 'OUT':
         fee = Decimal(row_dict['Fee(xDAI)']) / 10**18
 
@@ -56,7 +79,6 @@ def parse_blockscout(data_row, _parser, **kwargs):
                                                     sell_quantity=quantity,
                                                     sell_asset="xDAI",
                                                     fee_quantity=fee,
-                                                    fee_value=fee * unit_price,
                                                     fee_asset="xDAI",
                                                     wallet=get_wallet(row_dict['FromAddress']),
                                                     note=get_note(row_dict))
@@ -66,7 +88,6 @@ def parse_blockscout(data_row, _parser, **kwargs):
                                                     sell_quantity=quantity,
                                                     sell_asset="xDAI",
                                                     fee_quantity=fee,
-                                                    fee_value=fee * unit_price,
                                                     fee_asset="xDAI",
                                                     wallet=get_wallet(row_dict['FromAddress']),
                                                     note=get_note(row_dict))
@@ -106,11 +127,19 @@ def parse_blockscout_tokens(data_row, _parser, **_kwargs):
     quantity = Decimal(row_dict['TokensTransferred']) / 10**18
 
     if row_dict['Type'] == 'IN':
-        data_row.t_record = TransactionOutRecord(TransactionOutRecord.TYPE_DEPOSIT,
+        if row_dict['FromAddress'] in TOKEN_AIRDROPS:
+            t_type = TransactionOutRecord.TYPE_AIRDROP
+            note = TOKEN_AIRDROPS[row_dict['FromAddress']]['desc']
+        else:
+            t_type = TransactionOutRecord.TYPE_DEPOSIT
+            note = get_note(row_dict)
+
+        data_row.t_record = TransactionOutRecord(t_type,
                                                  data_row.timestamp,
                                                  buy_quantity=quantity,
                                                  buy_asset=asset,
-                                                 wallet=get_wallet(row_dict['ToAddress']))
+                                                 wallet=get_wallet(row_dict['ToAddress']),
+                                                 note=note)
     elif row_dict['Type'] == 'OUT':
         data_row.t_record = TransactionOutRecord(TransactionOutRecord.TYPE_WITHDRAWAL,
                                                  data_row.timestamp,
@@ -150,7 +179,7 @@ blockscout_internal_txns = DataParser(
         worksheet_name="Blockscout(xDAI Internal Transactions)",
         row_handler=parse_blockscout_internal)
 
-blockscout_token = DataParser(
+blockscout_tokens = DataParser(
         DataParser.TYPE_EXPLORER,
         "Blockscout (xDAI Token Transactions)",
         ['TxHash','BlockNumber','UnixTimestamp','FromAddress','ToAddress',
