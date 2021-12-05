@@ -40,6 +40,7 @@ from . import nexo
 from . import okex
 from . import poloniex
 from . import qtwallet
+from . import revolut
 from . import tradesatoshi
 from . import trezor
 from . import trezorsuite
