@@ -128,7 +128,7 @@ class DataSourceBase(object):
         for symbol in config.data_source_select:
             for ds in config.data_source_select[symbol]:
                 if ds.upper().startswith(self.name().upper() + ':'):
-                    if symbol in self.assets:
+                    if symbol.upper() in self.assets:
                         self._update_asset(symbol, ds)
                     else:
                         self._add_asset(symbol, ds)
@@ -136,8 +136,8 @@ class DataSourceBase(object):
     def _update_asset(self, symbol, data_source):
         asset_id = data_source.split(':')[1]
         # Update an existing symbol, validate id belongs to that symbol
-        if asset_id in self.ids and self.ids[asset_id]['symbol'] == symbol:
-            self.assets[symbol] = {'id': asset_id, 'name': self.ids[asset_id]['name']}
+        if asset_id in self.ids and self.ids[asset_id]['symbol'].casefold() == symbol.casefold():
+            self.assets[symbol.upper()] = {'id': asset_id, 'name': self.ids[asset_id]['name']}
 
             if config.debug:
                 print("%sprice: %s updated as %s [ID:%s] (%s)" % (
@@ -152,7 +152,7 @@ class DataSourceBase(object):
     def _add_asset(self, symbol, data_source):
         asset_id = data_source.split(':')[1]
         if asset_id in self.ids:
-            self.assets[symbol] = {'id': asset_id, 'name': self.ids[asset_id]['name']}
+            self.assets[symbol.upper()] = {'id': asset_id, 'name': self.ids[asset_id]['name']}
             self.ids[asset_id] = {'symbol': symbol, 'name': self.ids[asset_id]['name']}
 
             if config.debug:
