@@ -59,6 +59,27 @@ class DataSourceBase(object):
             return response.json()
         return {}
 
+    def get_graphql(self, url, query):
+        if config.debug:
+            print("%sprice: QUERY %s `%s`" % (Fore.YELLOW, url, query))
+
+        response = requests.post(
+            url,
+            headers={
+                'User-Agent': self.USER_AGENT,
+                "Content-Type": "application/json; charset=utf-8",
+            },
+            timeout=self.TIME_OUT,
+            json={'query': query}
+        )
+
+        if response.status_code in [429, 502, 503, 504]:
+            response.raise_for_status()
+
+        if response:
+            return response.json()['data']
+        return {}
+
     def update_prices(self, pair, prices, timestamp):
         if pair not in self.prices:
             self.prices[pair] = {}
@@ -655,3 +676,252 @@ class Blockscout(DataSourceBase):
     def get_historical(self, asset, quote, timestamp, asset_id=None):
         # only serve from cache
         None
+
+class yVault(DataSourceBase):
+    def __init__(self, no_persist=False):
+        super(yVault, self).__init__(no_persist=no_persist)
+
+        self.yvault_abi = self.get_abi('yVault')
+        self.token_abi = self.get_abi('ERC20')
+
+        self.w3 = Web3(Web3.HTTPProvider(config.web3_endpoint))
+        self.block_number = self.w3.eth.get_block_number()
+
+        self.load_vaults_info()
+
+        self.price_data = pricedata.PriceData(
+            [ds for ds in config.data_source_crypto if ds != self.__class__.__name__], price_tool=True, no_persist=True)
+        self.get_config_assets()
+
+    def get_latest(self, asset, quote, asset_id=None):
+        if asset_id is None:
+            asset_id = self.assets[asset]['id']
+
+        price_per_share, token_symbol, _ = self.get_at_block(asset_id, self.block_number)        
+
+        token_price, _, _ = self.price_data.get_latest(
+            token_symbol,
+            quote,
+        )
+
+        return price_per_share * token_price
+
+
+    def get_historical(self, asset, quote, timestamp, asset_id=None):
+        if not asset_id:
+            asset_id = self.assets[asset]['id']
+
+        block = self.find_block(timestamp)
+
+        price_per_share, token_symbol, token_address = self.get_at_block(asset_id, block.number)        
+
+        token_price, token_name, token_data_source, token_url = self.price_data.get_historical(
+            token_symbol,
+            quote,
+            timestamp,
+        )
+
+        pair = self.pair(asset, quote)
+        data = {
+            'platform': 'ethereum',
+            'block': {
+                'number': block.number,
+                'timestamp': datetime.utcfromtimestamp(block.timestamp),
+            },
+            'address': asset_id,
+            'calculation': "%s = %.18g * %s" % (asset, price_per_share, token_symbol),
+            token_symbol: {
+                'name': token_name,
+                'address': token_address,
+                'data_source': token_data_source,
+                'url': token_url,
+            }
+        }
+
+        self.update_prices(pair, {
+            datetime.utcfromtimestamp(block.timestamp).strftime('%Y-%m-%d'): {
+                'price': token_price * price_per_share,
+                # TODO: IPFS
+                'url': "data:application/json,%s" % urllib.parse.quote(json.dumps(data, indent=2, default=str)),
+                'data': data,
+            }
+        }, timestamp)
+
+    def get_at_block(self, address, block_number):
+        yvault_contract = self.w3.eth.contract(address, abi=self.yvault_abi)
+
+        price_per_share = yvault_contract.functions.getPricePerFullShare().call(block_identifier=block_number)
+
+        return Web3.fromWei(price_per_share, 'ether'), self.ids[address]['token_symbol'], self.ids[address]['token_address']
+
+
+    def get_abi(self, contract_name):
+        path = Path(__file__).parent.joinpath('abi/%s.json' % (contract_name)).absolute()
+        file = open(path)
+        abi = json.load(file)
+        file.close()
+
+        return abi
+
+    # find first block of the given date
+    def find_block(self, timestamp):
+        json_resp = self.get_json(
+            'https://api.etherscan.io/api?module=block&action=getblocknobytime&timestamp=%s&closest=after&apikey=%s' % (
+                int(datetime.timestamp(timestamp)), config.etherscan_api_key
+            )
+        )
+
+        if json_resp['status'] == '1':
+            block = self.w3.eth.get_block(int(json_resp['result']))
+
+            return block
+
+    def load_vaults_info(self, load_all=False):
+        # this works, but is very slow :(
+        if load_all:
+            # YRegistry: https://etherscan.io/address/0x3eE41C098f9666ed2eA246f4D2558010e59d63A0
+            yregistry = self.w3.eth.contract('0x3eE41C098f9666ed2eA246f4D2558010e59d63A0', abi=self.get_abi('YRegistry'))
+
+            yvaults = yregistry.functions.getVaults().call()
+            for vault_address in yvaults:
+                _, token_address, _, is_wrapped, is_delegated  = yregistry.functions.getVaultInfo(vault_address).call()
+
+                if is_wrapped or is_delegated:
+                    # skip these, because I don't know what wrapped/delegated means :)
+                    continue
+
+                vault_contract = self.w3.eth.contract(vault_address, abi=self.yvault_abi)
+            
+                symbol = vault_contract.functions.symbol().call()
+                name = vault_contract.functions.name().call()
+
+                token_contract = self.w3.eth.contract(token_address, abi=self.token_abi)
+                token_symbol = token_contract.functions.symbol().call()
+
+                self.ids[vault_address] = {
+                    'symbol': symbol,
+                    'name': name,
+                    'token_address': token_address,
+                    'token_symbol': token_symbol,
+                }
+        else:
+            self.ids = {
+                '0x2f08119C6f07c006695E079AAFc638b8789FAf18': {
+                    'symbol': 'yUSDT',
+                    'name': 'yearn Tether USD',
+                    'token_address': '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+                    'token_symbol': 'USDT',
+                },
+                '0x597aD1e0c13Bfe8025993D9e79C69E1c0233522e': {
+                    'symbol': 'yUSDC',
+                    'name': 'yearn USD/C',
+                    'token_address': '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+                    'token_symbol': 'USDC',
+                },
+                '0xACd43E627e64355f1861cEC6d3a6688B31a6F952': {
+                    'symbol': 'yDAI',
+                    'name': 'yearn DAI',
+                    'token_address': '0x6B175474E89094C44Da98b954EedeAC495271d0F',
+                    'token_symbol': 'DAI',
+                },
+                '0x37d19d1c4E1fa9DC47bD1eA12f742a0887eDa74a': {
+                    'symbol': 'yTUSD',
+                    'name': 'yearn TrueUSD',
+                    'token_address': '0x0000000000085d4780B73119b644AE5ecd22b376',
+                    'token_symbol': 'TUSD',
+                },
+                '0x9cA85572E6A3EbF24dEDd195623F188735A5179f': {
+                    'symbol': 'y3Crv',
+                    'name': 'yearn Curve.fi DAI/USDC/USDT',
+                    'token_address': '0x6c3F90f043a72FA612cbac8115EE7e52BDe6E490',
+                    'token_symbol': '3Crv',
+                },
+            }
+
+        self.assets = {
+            self.ids[asset_id]['symbol'].upper(): {
+                'id': asset_id,
+                'name': self.ids[asset_id]['name']
+            }
+            for asset_id in self.ids
+        }
+
+class HoneyswapSubgraph(DataSourceBase):
+    def __init__(self, no_persist=False):
+        super(HoneyswapSubgraph, self).__init__(no_persist=no_persist)
+
+        self.fiat_price_data = pricedata.PriceData(config.data_source_fiat, price_tool=True, no_persist=True)
+
+        json_resp = self.get_graphql(
+            "https://api.thegraph.com/subgraphs/name/1hive/honeyswap-xdai",
+            "{ tokens(where: { symbol_in: %s }) { id symbol name } }" % (
+                json.dumps([symbol for symbol in config.data_source_select
+                                   for ds in config.data_source_select[symbol]
+                                   if ds.upper().startswith(self.name().upper())])
+            ),
+        )
+
+        self.ids = {
+            asset['id']: {
+                'symbol': asset['symbol'],
+                'name': asset['name'],
+            }
+            for asset in json_resp['tokens']
+        }
+
+        self.assets = {
+            self.ids[asset_id]['symbol'].upper(): {
+                'id': asset_id,
+                'name': self.ids[asset_id]['name']
+            }
+            for asset_id in self.ids
+        }
+
+        self.get_config_assets()
+
+    def get_latest(self, asset, quote, asset_id=None):
+        if asset_id is None:
+            asset_id = self.assets[asset]['id']
+
+        json_resp = self.get_graphql(
+            "https://api.thegraph.com/subgraphs/name/1hive/honeyswap-xdai",
+            "{ token(id: \"%s\") { priceUSD: derivedNativeCurrency } }" % asset_id,
+        )
+
+        usd_price = Decimal(json_resp['token']['priceUSD'])
+
+        if quote == 'USD':
+            return usd_price
+            
+        usd_in_quote, _, _ =  self.fiat_price_data.get_latest('USD', quote)
+
+        return usd_price * usd_in_quote
+
+    def get_historical(self, asset, quote, timestamp, asset_id=None):
+        if not asset_id:
+            asset_id = self.assets[asset]['id']
+
+        url = "https://api.thegraph.com/subgraphs/name/1hive/honeyswap-xdai"
+        query = "{ token(id: \"%s\") { tokenDayData(where:{date_gte:%d}) { date priceUSD } } }" % (
+            asset_id, 
+            int(datetime.timestamp(timestamp))
+        )
+
+        json_resp = self.get_graphql(url, query)
+
+        pair = self.pair(asset,quote)
+        prices = {}
+
+        for data in json_resp['token']['tokenDayData']:
+            price = Decimal(data['priceUSD'])
+
+            if quote != 'USD':
+                usd_in_quote, _, _, _  = self.fiat_price_data.get_historical('USD', quote, timestamp)
+                price *= usd_in_quote
+
+            prices[datetime.utcfromtimestamp(data['date']).strftime('%Y-%m-%d')] = {
+                'price': price,
+                'url': "%s?query=%s" % (url, query),
+            }
+
+        self.update_prices(pair, prices, timestamp)
