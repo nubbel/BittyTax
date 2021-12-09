@@ -39,18 +39,10 @@ def parse_blockscout(data_row, _parser, **kwargs):
     quantity = Decimal(row_dict['Value(xDAI)']) / 10**18
 
     usd_price = Decimal(row_dict['TxDateOpeningPrice'])
-    unit_price = DataParser.convert_currency(usd_price, 'USD', data_row.timestamp)
 
     blockscout.update_prices("XDAI/USD", {
                         data_row.timestamp.strftime('%Y-%m-%d'): {
                             'price': usd_price,
-                            'url': "https://blockscout.com/xdai/mainnet/tx/%s" % row_dict['TxHash'],
-                        }},
-                        data_row.timestamp)
-
-    blockscout.update_prices("XDAI/%s" % config.ccy, {
-                        data_row.timestamp.strftime('%Y-%m-%d'): {
-                            'price': unit_price,
                             'url': "https://blockscout.com/xdai/mainnet/tx/%s" % row_dict['TxHash'],
                         }},
                         data_row.timestamp)

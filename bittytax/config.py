@@ -27,8 +27,6 @@ class Config(object):
     CRYPTO_LIST = ['BTC', 'ETH', 'XRP', 'LTC', 'BCH', 'USDT']
     REBASE_TOKEN_LIST = ['AMPL', 'MARK', 'OHM', 'sOWM', 'TIME', 'MEMO', 'SDOG', 'sSDOG']
 
-    PRICE_VIA_BTC = True
-
     FORMAT_CSV = 'CSV'
     FORMAT_EXCEL = 'EXCEL'
     FORMAT_RECAP = 'RECAP'
@@ -55,7 +53,6 @@ class Config(object):
         'stablecoin_list': STABLECOIN_LIST,
         'crypto_list': CRYPTO_LIST,
         'rebase_token_list': REBASE_TOKEN_LIST,
-        'price_via_btc': PRICE_VIA_BTC,
         'trade_asset_type': TRADE_ASSET_TYPE_PRIORITY,
         'trade_allowable_cost_type': TRADE_ALLOWABLE_COST_SPLIT,
         'show_empty_wallets': False,

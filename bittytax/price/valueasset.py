@@ -67,47 +67,49 @@ class ValueAsset(object):
                                                asset, timestamp.strftime('%Y-%m-%d')))
             return self.get_latest_price(asset)
 
-        if not config.price_via_btc or asset == 'BTC' or asset in config.fiat_list:
-            asset_price_ccy, name, data_source, url = self.price_data.get_historical(asset,
-                                                                                     config.ccy,
-                                                                                     timestamp,
-                                                                                     no_cache)
-            self.price_report_cache(asset, timestamp, name, data_source, url, asset_price_ccy)
-        else:
-            asset_price_btc, name, data_source, url = self.price_data.get_historical(asset,
-                                                                                     'BTC',
-                                                                                     timestamp,
-                                                                                     no_cache)
-            if asset_price_btc is not None:
-                btc_price_ccy, name2, data_source2, url2 = self.price_data.get_historical(
-                    'BTC', config.ccy, timestamp, no_cache)
-                if btc_price_ccy is not None:
-                    asset_price_ccy = btc_price_ccy * asset_price_btc
+    
+        asset_price_ccy, curr_asset, asset_name, asset_data_source, asset_url = self.price_data.get_historical(
+            asset, config.ccy, timestamp, no_cache)
+        
+        self.price_report_cache(
+            asset, timestamp, asset_name, asset_data_source, asset_url, asset_price_ccy, curr_asset)
+        
+        path = []
 
-                self.price_report_cache('BTC', timestamp, name2, data_source2, url2, btc_price_ccy)
+        while asset_price_ccy and curr_asset != config.ccy:
+            price, quote_asset, name, data_source, url = self.price_data.get_historical(
+                curr_asset, config.ccy, timestamp, no_cache)
 
-            self.price_report_cache(asset, timestamp, name, data_source, url, asset_price_ccy,
-                                    asset_price_btc)
+            if price is None:
+                return None, asset_name, asset_data_source
 
-        return asset_price_ccy, name, data_source
+            self.price_report_cache(curr_asset, timestamp, name, data_source, url, price, quote_asset)
+            
+            asset_price_ccy *= price
+
+            path.append(curr_asset)
+            curr_asset = quote_asset
+
+        self.price_report_cache(
+            asset, timestamp, asset_name, asset_data_source, asset_url, asset_price_ccy, config.ccy, path)
+
+        return asset_price_ccy, asset_name, asset_data_source
 
     def get_latest_price(self, asset):
-        asset_price_ccy = None
+        asset_price_ccy, curr_asset, asset_name, asset_data_source = self.price_data.get_latest(asset, config.ccy)
 
-        if not config.price_via_btc or asset == 'BTC' or asset in config.fiat_list:
-            asset_price_ccy, name, data_source = self.price_data.get_latest(asset, config.ccy)
-        else:
-            asset_price_btc, name, data_source = self.price_data.get_latest(asset, 'BTC')
+        while asset_price_ccy and curr_asset != config.ccy:
+            price, curr_asset, name, data_source = self.price_data.get_latest(curr_asset, config.ccy)
 
-            if asset_price_btc is not None:
-                btc_price_ccy, _, _ = self.price_data.get_latest('BTC', config.ccy)
-                if btc_price_ccy is not None:
-                    asset_price_ccy = btc_price_ccy * asset_price_btc
+            if price is None:
+                return None, asset_name, asset_data_source
 
-        return asset_price_ccy, name, data_source
+            asset_price_ccy *= price
+
+        return asset_price_ccy, asset_name, asset_data_source
 
     def price_report_cache(self, asset, timestamp, name, data_source, url,
-                           price_ccy, price_btc=None):
+                           price, quote_asset, path=[]):
         if timestamp > config.get_tax_year_end(timestamp.year):
             tax_year = timestamp.year + 1
         else:
@@ -116,13 +118,18 @@ class ValueAsset(object):
         if tax_year not in self.price_report:
             self.price_report[tax_year] = {}
 
-        if asset not in self.price_report[tax_year]:
-            self.price_report[tax_year][asset] = {}
-
         date = timestamp.strftime('%Y-%m-%d')
-        if date not in self.price_report[tax_year][asset]:
-            self.price_report[tax_year][asset][date] = {'name': name,
-                                                        'data_source': data_source,
-                                                        'url': url,
-                                                        'price_ccy': price_ccy,
-                                                        'price_btc': price_btc}
+        if date not in self.price_report[tax_year]:
+            self.price_report[tax_year][date] = {}
+
+        pair = asset.upper() + '/' + quote_asset.upper()
+        if pair not in self.price_report[tax_year][date]:
+            self.price_report[tax_year][date][pair] = {
+                'symbol': asset,
+                'name': name,
+                'data_source': data_source,
+                'url': url,
+                'price': price,
+                'quote_asset': quote_asset,
+                'path': path
+            }
