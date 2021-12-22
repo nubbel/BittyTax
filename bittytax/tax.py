@@ -57,6 +57,9 @@ class TaxCalculator(object):
                       unit='t',
                       desc="%spool same day%s" % (Fore.CYAN, Fore.GREEN),
                       disable=bool(config.debug or not sys.stdout.isatty())):
+            if t.asset in config.fiat_list:
+                continue
+
             if isinstance(t, Buy) and t.acquisition and t.t_type not in self.NO_MATCH_TYPES:
                 if (t.asset, t.timestamp.date()) not in buy_transactions:
                     buy_transactions[(t.asset, t.timestamp.date())] = t
@@ -447,6 +450,7 @@ class TaxEventIncome(TaxEvent):
         self.quantity = b.quantity
         self.amount = b.cost.quantize(PRECISION)
         self.note = b.note
+        self.wallet = b.wallet
         if b.fee_value:
             self.fees = b.fee_value.quantize(PRECISION)
         else:
