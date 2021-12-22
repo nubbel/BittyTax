@@ -39,6 +39,7 @@ from . import liquid
 from . import nexo
 from . import okex
 from . import poloniex
+from . import portfolio_performance
 from . import qtwallet
 from . import revolut
 from . import tradesatoshi
