@@ -112,6 +112,11 @@ AIRDROPS = {
         # 1INCH
         '0x111111111117dc0aa78b770fa6a738034120c302',
     ],
+    # Force DAO
+    '0x42b38ca3e09c92ca82fa3659ca039188a6a076ac': [
+        # FORCE
+        '0x2c31b10ca416b82cec4c5e93c615ca851213d48d',
+    ]
 }
 
 def merge_etherscan(data_files):
@@ -156,8 +161,10 @@ def do_merge_etherscan(data_files, staking_addresses, airdrop_addresses):
             output_records(data_row, t_ins, t_outs, t_stakings)
 
         t_ins_orig = copy.copy(t_ins)
-        do_handle_airdrops(data_row, t_ins, airdrop_addresses)
-        do_handle_staking_rewards(data_row, t_ins, staking_addresses)
+
+        if not t_outs:
+            do_handle_airdrops(data_row, t_ins, airdrop_addresses)
+            do_handle_staking_rewards(data_row, t_ins, staking_addresses)
 
         # Make trades
         if len(t_ins) == 1 and t_outs:

@@ -15,33 +15,59 @@ from ..parsers.blockscout import blockscout_txns, blockscout_tokens, blockscout_
 
 PRECISION = Decimal('0.' + '0' * 18)
 
-# xCOMB Airdrop: 0x9fe9e1c0e9ade3f5a32cb66b30066413955e6bc08b244bfeabfdf2e673db677c
-# # Honey Faucet
-# '0x967ebb4343c442d19a47b9196d121bd600600911': [
-#     # HNY
-#     '0x71850b7e9ee3f13ab46d67167341e4bdc905eef9',
-# ],
+STAKING = {
+    # HNY-WXDAI Farm
+    '0x8520fc4c282342f8e746b881b9b60c14f96a0fab': [
+        # HNY
+        '0x71850b7e9ee3f13ab46d67167341e4bdc905eef9',
+    ],
+    # HNY-STAKE Farm
+    '0xa6c55971f21cc1c35ea617f47980d669a0c09cf3': [
+        # HNY
+        '0x71850b7e9ee3f13ab46d67167341e4bdc905eef9',
+    ],
+    # Honey Farm V2
+    '0xb44825cf0d8d4dd552f2434056c41582415aaaa1': [
+        # xCOMB
+        '0x38fb649ad3d6ba1113be5f57b927053e97fc5bf7',
+    ],
+    # Celeste
+    '0x8c9968a2b16bc1cd0ead74f5eef25e899e795501': [
+        # no rewards
+    ],
+    # 1Hive Staking
+    '0x0e25b918c9fb2fea5d42011d1f4b9f8c61b453e7': [
+        # no rewards
+    ],
+}
+
+AIRDROPS = {
+    # Honey Faucet
+    '0x967ebb4343c442d19a47b9196d121bd600600911': [
+        # HNY
+        '0x71850b7e9ee3f13ab46d67167341e4bdc905eef9',
+    ],
+    # xCOMB Airdrop
+    '0xdd36008685108afafc11f88bbc66c39a851df843': [
+        # xCOMB
+        '0x38fb649ad3d6ba1113be5f57b927053e97fc5bf7'
+    ],
+    # Freedom Reserve Airdrop
+    '0xa5025faba6e70b84f74e9b1113e5f7f4e7f4859f': [
+        # FR
+        '0x270de58f54649608d316faa795a9941b355a2bd0',
+    ],
+    # Agave Airdeop
+    '0xfd97188bcaf9fc0df5ab0a6cca263c3aada1f382': [
+        # AGVE
+        '0x3a97704a1b25f08aa230ae53b352e2e72ef52843',
+    ]
+}
 
 def merge_blockscout(data_files):
-    return do_merge_blockscout(data_files, {
-        # HNY-WXDAI Farm
-        '0x8520fc4c282342f8e746b881b9b60c14f96a0fab': [
-            # HNY
-            '0x71850b7e9ee3f13ab46d67167341e4bdc905eef9',
-        ],
-        # HNY-STAKE Farm
-        '0xa6c55971f21cc1c35ea617f47980d669a0c09cf3': [
-            # HNY
-            '0x71850b7e9ee3f13ab46d67167341e4bdc905eef9',
-        ],
-        # Honey Farm V2
-        '0xb44825cf0d8d4dd552f2434056c41582415aaaa1': [
-            # xCOMB
-            '0x38fb649ad3d6ba1113be5f57b927053e97fc5bf7',
-        ],
-    })
+    return do_merge_blockscout(data_files, STAKING, AIRDROPS)
 
-def do_merge_blockscout(data_files, staking_addresses):
+def do_merge_blockscout(data_files, staking_addresses, airdrop_addresses):
     merge = False
 
     for data_row in data_files['txns'].data_rows:
@@ -74,18 +100,26 @@ def do_merge_blockscout(data_files, staking_addresses):
                  t.t_record.t_type == TransactionOutRecord.TYPE_DEPOSIT]
         t_outs = [t for t in t_tokens + [data_row] if t.t_record and
                   t.t_record.t_type == TransactionOutRecord.TYPE_WITHDRAWAL]
+        t_stakings = []
 
         if config.debug:
             output_records(data_row, t_ins, t_outs)
 
         t_ins_orig = copy.copy(t_ins)
-        method_handling(t_ins, data_row, staking_addresses)
+
+        if not t_outs:
+            do_handle_airdrops(data_row, t_ins, airdrop_addresses)
+            do_handle_staking_rewards(data_row, t_ins, staking_addresses)
 
         # Make trades
         if len(t_ins) == 1 and t_outs:
             do_blockscout_multi_sell(t_ins, t_outs, data_row)
         elif len(t_outs) == 1 and t_ins:
             do_blockscout_multi_buy(t_ins, t_outs, data_row)
+        elif not t_ins:
+            do_enter_staking(data_row, t_outs, staking_addresses, t_stakings)
+        elif not t_outs:
+            do_exit_staking(data_row, t_ins, staking_addresses, t_stakings)
         elif len(t_ins) > 1 and len(t_outs) > 1:
             # multi-sell to multi-buy trade not supported
             sys.stderr.write("%sWARNING%s Merge failure for TxHash: %s\n" % (
@@ -102,10 +136,19 @@ def do_merge_blockscout(data_files, staking_addresses):
         t_tokens = [t for t in t_tokens if t.t_record]
         do_fee_split(t_tokens, data_row)
 
+        # Add enter/exist staking txns
+        data_files['tokens'].data_rows += t_stakings
+
         merge = True
 
         if config.debug:
             output_records(data_row, t_ins_orig, t_outs)
+
+
+    # handle token transactions with no parent tx, e.g. an airdrop sent directly to my wallet
+    t_ins = [t for t in data_files['tokens'].data_rows if not t.parsed and t.t_record and
+                 t.t_record.t_type == TransactionOutRecord.TYPE_DEPOSIT]
+    do_handle_airdrops(None, t_ins, airdrop_addresses)
 
     return merge
 
@@ -161,23 +204,40 @@ def output_records(data_row, t_ins, t_outs):
         sys.stderr.write("%smerge:   TR-O%s: %s\n" % (
             Fore.YELLOW, '*' if data_row is t_out else '', t_out.t_record))
 
-def method_handling(t_ins, data_row, staking_addresses):
-    if not t_ins:
-        return
-
+def do_handle_staking_rewards(data_row, t_ins, staking_addresses):
     t_rewards = [t for t in t_ins if
-        t.row_dict.get('FromAddress') in staking_addresses and
-        t.row_dict.get('TokenContractAddress') in staking_addresses[t.row_dict.get('FromAddress')]]
-
-    if t_rewards:
-        print('t_rewards', t_rewards)
+        (t.row_dict['FromAddress'] in staking_addresses and
+            t.row_dict['TokenContractAddress'] in staking_addresses[t.row_dict['FromAddress']]) or
+        (data_row.row_dict['ToAddress'] in staking_addresses and
+            t.row_dict['TokenContractAddress'] in staking_addresses[data_row.row_dict['ToAddress']])
+    ]
 
     for t_reward in t_rewards:
         t_reward.t_record.t_type = TransactionOutRecord.TYPE_STAKING
+        t_reward.t_record.note = 'Staking Rewards'
         t_ins.remove(t_reward)
 
         if config.debug:
-            sys.stderr.write("%smerge:     staking\n" % (Fore.YELLOW))
+            sys.stderr.write("%smerge:     staking_rewards_quantity=%s staking_rewards_asset=%s\n" % (
+                Fore.YELLOW,
+                TransactionOutRecord.format_quantity(t_reward.t_record.buy_quantity), t_reward.t_record.buy_asset))
+
+def do_handle_airdrops(data_row, t_ins, airdrop_addresses):
+    t_airdrops = [t for t in t_ins if
+        (t.row_dict['FromAddress'] in airdrop_addresses and
+            t.row_dict['TokenContractAddress'] in airdrop_addresses[t.row_dict['FromAddress']]) or
+        (data_row and data_row.row_dict['ToAddress'] in airdrop_addresses and
+            t.row_dict['TokenContractAddress'] in airdrop_addresses[data_row.row_dict['ToAddress']])
+    ]
+
+    for t_airdrop in t_airdrops:
+        t_airdrop.t_record.t_type = TransactionOutRecord.TYPE_AIRDROP
+        t_ins.remove(t_airdrop)
+
+        if config.debug:
+            sys.stderr.write("%smerge:     airdrop_quantity=%s airdrop_asset=%s\n" % (
+                Fore.YELLOW,
+                TransactionOutRecord.format_quantity(t_airdrop.t_record.buy_quantity), t_airdrop.t_record.buy_asset))
 
 def do_blockscout_multi_sell(t_ins, t_outs, data_row):
     if config.debug:
@@ -271,6 +331,38 @@ def do_blockscout_multi_buy(t_ins, t_outs, data_row):
         data_row.t_record.sell_asset = ''
     else:
         t_outs[0].t_record = None
+
+
+def do_enter_staking(data_row, t_outs, staking_addresses, t_stakings):
+    for t_out in t_outs:
+        if t_out.row_dict['ToAddress'] in staking_addresses or data_row.row_dict['ToAddress'] in staking_addresses:
+            # add a deposit tx on the virtual staking wallet to match the withdrawal
+            deposit_t = copy.copy(t_out)
+            deposit_t.t_record = TransactionOutRecord(TransactionOutRecord.TYPE_DEPOSIT,
+                                                    deposit_t.timestamp,
+                                                    buy_quantity=t_out.t_record.sell_quantity,
+                                                    buy_asset=t_out.t_record.sell_asset,
+                                                    buy_value=t_out.t_record.sell_value,
+                                                    wallet=get_staking_wallet(t_out.t_record.wallet),
+                                                    note='Enter Staking')
+            t_stakings.append(deposit_t)
+
+def do_exit_staking(data_row, t_ins, staking_addresses, t_stakings):
+    for t_in in t_ins:
+        if t_in.row_dict['FromAddress'] in staking_addresses or data_row.row_dict['ToAddress'] in staking_addresses:
+            # add a withdrawal tx from the virtual staking wallet to match the deposit
+            withdrawal_t = copy.copy(t_in)
+            withdrawal_t.t_record = TransactionOutRecord(TransactionOutRecord.TYPE_WITHDRAWAL,
+                                                    withdrawal_t.timestamp,
+                                                    sell_quantity=t_in.t_record.buy_quantity,
+                                                    sell_asset=t_in.t_record.buy_asset,
+                                                    sell_value=t_in.t_record.buy_value,
+                                                    wallet=get_staking_wallet(t_in.t_record.wallet),
+                                                    note='Exit Staking')
+            t_stakings.append(withdrawal_t)
+
+def get_staking_wallet(wallet):
+    return "%s:Staking" % wallet
 
 def do_fee_split(t_tokens, data_row):
     if config.debug:

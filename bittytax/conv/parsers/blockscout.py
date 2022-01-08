@@ -21,15 +21,6 @@ TOKENS = {
 
 XDAI_FAUCET = '0x97AAE423C9A1Bc9cf2D81f9f1299b117A7b01136'
 
-TOKEN_AIRDROPS = {
-    '0x967ebb4343c442d19a47b9196d121bd600600911': {
-        'desc': 'Honey Faucet'
-    },
-    '0xdd36008685108afafc11f88bbc66c39a851df843': {
-        'desc': 'xCOMB Airdrop'
-    },
-}
-
 blockscout = Blockscout()
 
 def parse_blockscout(data_row, _parser, **kwargs):
@@ -118,19 +109,12 @@ def parse_blockscout_tokens(data_row, _parser, **_kwargs):
     quantity = Decimal(row_dict['TokensTransferred']) / 10**18
 
     if row_dict['Type'] == 'IN':
-        if row_dict['FromAddress'] in TOKEN_AIRDROPS:
-            t_type = TransactionOutRecord.TYPE_AIRDROP
-            note = TOKEN_AIRDROPS[row_dict['FromAddress']]['desc']
-        else:
-            t_type = TransactionOutRecord.TYPE_DEPOSIT
-            note = get_note(row_dict)
-
-        data_row.t_record = TransactionOutRecord(t_type,
+        data_row.t_record = TransactionOutRecord(TransactionOutRecord.TYPE_DEPOSIT,
                                                  data_row.timestamp,
                                                  buy_quantity=quantity,
                                                  buy_asset=asset,
                                                  wallet=get_wallet(row_dict['ToAddress']),
-                                                 note=note)
+                                                 note=get_note(row_dict))
     elif row_dict['Type'] == 'OUT':
         data_row.t_record = TransactionOutRecord(TransactionOutRecord.TYPE_WITHDRAWAL,
                                                  data_row.timestamp,
