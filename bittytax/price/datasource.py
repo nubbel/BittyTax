@@ -640,6 +640,121 @@ class yVault(DataSourceBase):
             for asset_id in self.ids
         }
 
+class yVaultV2(DataSourceBase):
+    def __init__(self, no_persist=False):
+        super(yVaultV2, self).__init__(no_persist=no_persist)
+
+        self.yvault_abi = self.get_abi('yVaultV2')
+        self.token_abi = self.get_abi('ERC20')
+
+        self.w3 = Web3(Web3.HTTPProvider(config.web3_endpoint))
+        self.block_number = self.w3.eth.get_block_number()
+
+        self.load_vaults_info()
+        self.get_config_assets()
+
+    def get_latest(self, asset, quote, asset_id=None):
+        if asset_id is None:
+            asset_id = self.assets[asset]['id']
+
+        price_per_share, token_symbol, _ = self.get_at_block(asset_id, self.block_number)        
+
+        return price_per_share, token_symbol
+
+
+    def get_historical(self, asset, quote, timestamp, asset_id=None):
+        print('DEBUG[yVault.get_historical]', asset, quote, timestamp, asset_id, self.assets[asset]['id'])
+        if not asset_id:
+            asset_id = self.assets[asset]['id']
+
+        block = self.find_block(timestamp)
+        print('DEBUG[yVault.get_historical]   block', block.number, datetime.utcfromtimestamp(block.timestamp))
+
+        price_per_share, token_symbol, _ = self.get_at_block(asset_id, block.number)   
+        print('DEBUG[yVault.get_historical]  price', price_per_share)
+        print('DEBUG[yVault.get_historical]  token_symbol', token_symbol)
+
+        pair = self.pair(asset, token_symbol)
+        data = {
+            'platform': 'ethereum',
+            'block': {
+                'number': block.number,
+                'timestamp': datetime.utcfromtimestamp(block.timestamp),
+            },
+            'address': asset_id,
+            'calculation': "%s = %.18g * %s" % (asset, price_per_share, token_symbol)
+        }
+
+        self.update_prices(pair, {
+            datetime.utcfromtimestamp(block.timestamp).strftime('%Y-%m-%d'): {
+                'price': price_per_share,
+                # TODO: IPFS
+                'url': "data:application/json,%s" % urllib.parse.quote(json.dumps(data, indent=2, default=str)),
+                'data': data,
+            }
+        }, timestamp)
+
+        return token_symbol
+
+    def get_at_block(self, address, block_number):
+        yvault_contract = self.w3.eth.contract(address, abi=self.yvault_abi)
+
+        price_per_share = yvault_contract.functions.pricePerShare().call(block_identifier=block_number)
+
+        return Web3.fromWei(price_per_share, 'ether'), self.ids[address]['token_symbol'], self.ids[address]['token_address']
+
+
+    def get_abi(self, contract_name):
+        path = Path(__file__).parent.joinpath('abi/%s.json' % (contract_name)).absolute()
+        file = open(path)
+        abi = json.load(file)
+        file.close()
+
+        return abi
+
+    # find first block of the given date
+    def find_block(self, timestamp):
+        json_resp = self.get_json(
+            'https://api.etherscan.io/api?module=block&action=getblocknobytime&timestamp=%s&closest=after&apikey=%s' % (
+                self.epoch_time(timestamp), config.etherscan_api_key
+            )
+        )
+
+        if json_resp['status'] == '1':
+            block = self.w3.eth.get_block(int(json_resp['result']))
+
+            return block
+
+    def load_vaults_info(self, load_all=False):
+        self.ids = {
+            '0x84E13785B5a27879921D6F685f041421C7F482dA': {
+                'symbol': 'yvCurve-3pool',
+                'name': 'Curve 3pool yVault',
+                'token_address': '0x6c3F90f043a72FA612cbac8115EE7e52BDe6E490',
+                'token_symbol': '3Crv',
+            },
+            '0xE14d13d8B3b85aF791b2AADD661cDBd5E6097Db1': {
+                'symbol': 'yvYFI',
+                'name': 'YFI yVault',
+                'token_address': '0x0bc529c00C6401aEF6D220BE8C6Ea1667F6Ad93e',
+                'token_symbol': 'YFI',
+            },
+            '0xB8C3B7A2A618C552C23B1E4701109a9E756Bab67': {
+                'symbol': 'yv1INCH',
+                'name': '1INCH yVault',
+                'token_address': '0x111111111117dc0aa78b770fa6a738034120c302',
+                'token_symbol': '1INCH',
+            },
+        }
+
+        self.assets = {
+            self.ids[asset_id]['symbol'].upper(): {
+                'id': asset_id,
+                'name': self.ids[asset_id]['name']
+            }
+            for asset_id in self.ids
+        }
+
 class HoneyswapSubgraph(DataSourceBase):
     def __init__(self, no_persist=False):
         super(HoneyswapSubgraph, self).__init__(no_persist=no_persist)
