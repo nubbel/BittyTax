@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # (c) Nano Nano Ltd 2021
 
+import copy
 from decimal import Decimal
 import sys
 
@@ -9,9 +10,8 @@ from bittytax.conv.exceptions import UnexpectedContentError
 
 from bittytax.conv.out_record import TransactionOutRecord
 from bittytax.conv.parsers import kraken
-from .etherscan import do_merge_etherscan
 from ..datamerge import DataMerge
-from bittytax.conv.parsers.kraken import kraken_ledgers, kraken_trades
+from bittytax.conv.parsers.kraken import STAKING_WALLET, kraken_ledgers, kraken_trades
 
 
 def merge_kraken(data_files):
@@ -42,7 +42,7 @@ def merge_trades(ledgers_file, trades_file):
             trade_row.parsed = True
 
         if not matching_row:
-            # check if it's a weird remainder trade (small quanitities)
+            # check if it's a weird remainder trade (small quantities)
             if trade_row and trade_row.row_dict['ledgers'] == data_row.row_dict['txid']:
                 data_row.t_record = trade_row.t_record
                 data_row.t_record.note = "remainder"
@@ -110,6 +110,29 @@ def merge_trades(ledgers_file, trades_file):
     for data_row in trades_file.data_rows:
         if data_row.parsed:
             data_row.t_record = None
+
+    virtual_trades = []
+    for data_row in ledgers_file.data_rows:
+        if (data_row.parsed or not data_row.t_record or 
+            data_row.t_record.wallet != STAKING_WALLET or
+            data_row.t_record.t_type != TransactionOutRecord.TYPE_DEPOSIT or 
+            data_row.t_record.buy_asset != 'ETH2'):
+            continue
+
+        data_row.t_record.buy_asset = 'ETH'
+
+        trade = copy.copy(data_row)
+        trade.t_record = TransactionOutRecord(TransactionOutRecord.TYPE_TRADE,
+                                                 trade.timestamp,
+                                                 buy_quantity=data_row.t_record.buy_quantity,
+                                                 buy_asset='ETH2',
+                                                 sell_quantity=data_row.t_record.buy_quantity,
+                                                 sell_asset='ETH',
+                                                 wallet=data_row.t_record.wallet,
+                                                 note='conversion')
+        virtual_trades.append(trade)
+    
+    ledgers_file.data_rows += virtual_trades
 
     return merge
 

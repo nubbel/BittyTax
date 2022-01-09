@@ -630,6 +630,12 @@ class yVault(DataSourceBase):
                     'token_address': '0x6c3F90f043a72FA612cbac8115EE7e52BDe6E490',
                     'token_symbol': '3Crv',
                 },
+                '0x5dbcF33D8c2E976c6b560249878e6F1491Bca25c': {
+                    'symbol': 'yUSD',
+                    'name': 'yearn Curve.fi yDAI/yUSDC/yUSDT/yTUSD',
+                    'token_address': '0xdF5e0e81Dff6FAF3A7e52BA697820c5e32D806A8',
+                    'token_symbol': 'yCurve',
+                },
             }
 
         self.assets = {

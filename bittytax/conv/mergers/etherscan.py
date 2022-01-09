@@ -65,13 +65,23 @@ STAKING = {
         # AMPL
         '0xd46ba6d942050d489dbd938a2c909a5d5039a161',
     ],
+    # Ampleforth Beehive V2 Geyser (Uniswap ETH-AMPL)
+    '0x075bb66a472ab2bbb8c215629c77e8ee128cc2fc': [
+        # AMPL
+        '0xd46ba6d942050d489dbd938a2c909a5d5039a161',
+    ],
     # ETH/DAI pool on Uniswap V2
     '0xa1484c3aa22a66c62b77e0ae78e15258bd0cb711': [
         # UNI
         '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984',
     ],
-    # Benchmark
+    # Benchmark Launchpool
     '0x6544b1cd2d28c6c53b52a1ffb8e547740e426b33': [
+        # MARK
+        '0x67c597624b17b16fb77959217360b7cd18284253',
+    ],
+    # Benchmark The Press
+    '0x5d9972dd3ba5602574abea6bf9e1713568d49903': [
         # MARK
         '0x67c597624b17b16fb77959217360b7cd18284253',
     ],
@@ -88,6 +98,9 @@ STAKING = {
     '0xda481b277dce305b97f4091bd66595d57cf31634': [
         # PICKLE
         '0x429881672b9ae42b8eba0e26cd9c73711b891ca5',
+    ],
+    # dYdX
+    '0x1e0447b19bb6ecfdae1e4ae1694b0c3659614e4e': [
     ]
 }
 

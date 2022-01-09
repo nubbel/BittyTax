@@ -16,8 +16,9 @@ TOKENS = {
     '0xc5be99a02c6857f9eac67bbce58df5572498f40c': 'UNI-V2-ETH-AMPL',
     '0x6f23d2fedb4ff4f1e9f8c521f66e5f2a1451b6f3': 'UNI-V2-MARK-ETH',
     '0x4d3c5db2c68f6859e0cd05d080979f597dd64bff': 'UNI-V2-MVI-ETH',
-    '0x173f8ee61c0fe712cae2a2fc8d5c0ccdda57e6da': 'snowyDAI+yUSDC+yUSDT+yTUSD',
-    '0xced67a187b923f0e5ebcc77c7f2f7da20099e378': 'pSLP-yvBOOST-ETH'
+    '0x173f8ee61c0fe712cae2a2fc8d5c0ccdda57e6da': 'SNOW-yVault-USD',
+    '0xced67a187b923f0e5ebcc77c7f2f7da20099e378': 'pSLP-yvBOOST-ETH',
+    '0x5dbcf33d8c2e976c6b560249878e6f1491bca25c': 'yUSD',
 }
 
 def parse_etherscan(data_row, _parser, **kwargs):
