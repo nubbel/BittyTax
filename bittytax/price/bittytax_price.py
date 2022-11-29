@@ -79,7 +79,7 @@ def main():
                                                        "the same data source(s) as "
                                                        "'bittytax' are used." % config.ccy)
     parser_history.add_argument('asset',
-                                type=str.upper,
+                                type=str,
                                 nargs=1,
                                 help="symbol of cryptoasset or fiat currency "
                                      "(i.e. BTC/LTC/ETH or EUR/USD)")

@@ -29,6 +29,7 @@ class ReportPdf(object):
         self.env.filters['datefilter2'] = self.datefilter2
         self.env.filters['quantityfilter'] = self.quantityfilter
         self.env.filters['valuefilter'] = self.valuefilter
+        self.env.filters['pricefilter'] = self.pricefilter
         self.env.filters['ratefilter'] = self.ratefilter
         self.env.filters['ratesfilter'] = self.ratesfilter
         self.env.filters['nowrapfilter'] = self.nowrapfilter
@@ -81,6 +82,13 @@ class ReportPdf(object):
         if config.ccy in ('DKK', 'NOK', 'SEK'):
             return 'kr.{:0,.2f}'.format(value)
         raise ValueError("Currency not supported")
+    
+    @staticmethod
+    def pricefilter(price, quote_asset):
+        if quote_asset in config.fiat_list:
+            return '{:0,.2f}'.format(price)
+        
+        return ReportPdf.quantityfilter(price)
 
     @staticmethod
     def ratefilter(rate):
@@ -421,29 +429,29 @@ class ReportLog(object):
             'Asset'.ljust(self.ASSET_WIDTH+2),
             'Data Source',
             'Date',
-            'Price (%s)' % config.ccy,
-            'Price (BTC)'))
+            'Price',
+            'Quote Asset'))
 
         if tax_year not in self.price_report:
             return
 
         price_missing_flag = False
-        for asset in sorted(self.price_report[tax_year]):
-            for date in sorted(self.price_report[tax_year][asset]):
-                price_data = self.price_report[tax_year][asset][date]
-                if price_data['price_ccy'] is not None:
+        for date in sorted(self.price_report[tax_year]):
+            for pair in sorted(self.price_report[tax_year][date]):
+                price_data = self.price_report[tax_year][date][pair]
+                if price_data['price'] is not None:
                     print("%s1 %s %-16s %-10s  %13s %25s" % (
                         Fore.WHITE,
-                        self.format_asset(asset, price_data['name']).ljust(self.ASSET_WIDTH),
+                        self.format_asset(price_data['symbol'], price_data['name']).ljust(self.ASSET_WIDTH),
                         price_data['data_source'],
                         self.format_date(date),
-                        self.format_value(price_data['price_ccy']),
-                        self.format_quantity(price_data['price_btc'])))
+                        self.format_value(price_data['price']),
+                        price_data['quote_asset']))
                 else:
                     price_missing_flag = True
                     print("%s1 %s %-16s %-10s %s%13s %25s" % (
                         Fore.WHITE,
-                        self.format_asset(asset, price_data['name']).ljust(self.ASSET_WIDTH),
+                        self.format_asset(price_data['symbol'], price_data['name']).ljust(self.ASSET_WIDTH),
                         '',
                         self.format_date(date),
                         Fore.BLUE,
@@ -518,6 +526,16 @@ class ReportLog(object):
     @staticmethod
     def format_value(value):
         return config.sym() + '{:0,.2f}'.format(value + 0)
+
+    @staticmethod
+    def format_price(price, quote_asset):
+        if price is None:
+            return 'n/a'
+
+        if quote_asset in config.fiat_list:
+            return '{:0,.2f}'.format(price + 0) + " " + quote_asset
+
+        return '{:0,f}'.format(price.normalize()) + " " + quote_asset
 
     @staticmethod
     def format_asset(asset, name):

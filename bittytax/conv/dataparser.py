@@ -99,9 +99,11 @@ class DataParser(object):
             return Decimal(value)
 
         if timestamp.date() >= datetime.now().date():
-            rate_ccy, _, _ = cls.price_data.get_latest(from_currency, config.ccy)
+            rate_ccy, quote_asset, _, _ = cls.price_data.get_latest(from_currency, config.ccy)
         else:
-            rate_ccy, _, _, _ = cls.price_data.get_historical(from_currency, config.ccy, timestamp)
+            rate_ccy, quote_asset, _, _, _ = cls.price_data.get_historical(from_currency, config.ccy, timestamp)
+
+        assert(quote_asset == config.ccy)
 
         value_in_ccy = Decimal(value) * rate_ccy
 

@@ -68,6 +68,7 @@ setup(
         'reportlab<=3.6.6',
         'colorama',
         'tqdm',
+        'web3'
     ],
     entry_points={
         'console_scripts': [

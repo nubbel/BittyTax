@@ -454,6 +454,7 @@ class TaxEventIncome(TaxEvent):
         self.quantity = b.quantity
         self.amount = b.cost.quantize(PRECISION)
         self.note = b.note
+        self.wallet = b.wallet
         if b.fee_value:
             self.fees = b.fee_value.quantize(PRECISION)
         else:

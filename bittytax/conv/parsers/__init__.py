@@ -9,6 +9,7 @@ from . import bittylicious
 from . import blockchain
 from . import blockfi
 from . import bnktothefuture
+from . import blockscout
 from . import bscscan
 from . import celsius
 from . import cgtcalculator
@@ -49,8 +50,10 @@ from . import okex
 from . import poloniex
 from . import polygonscan
 from . import qtrade
+from . import portfolio_performance
 from . import qtwallet
 from . import snowtrace
+from . import revolut
 from . import tradesatoshi
 from . import trezor
 from . import trezorsuite
@@ -58,4 +61,5 @@ from . import uphold
 from . import volt
 from . import wirex
 from . import zelcore
+from . import yoroi
 from . import zerion
