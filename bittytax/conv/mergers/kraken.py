@@ -162,5 +162,6 @@ def find_trade_row(data_rows, refid):
     return None
 
 DataMerge("Kraken T",
-          {'ledgers': kraken_ledgers, 'trades': kraken_trades},
+          {'ledgers': {'req': DataMerge.MAN, 'obj': kraken_ledgers},
+              'trades': {'req': DataMerge.MAN, 'obj': kraken_trades}},
           merge_kraken)

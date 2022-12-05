@@ -398,6 +398,9 @@ def do_fee_split(t_tokens, data_row):
             data_row.t_record.fee_quantity = None
             data_row.t_record.fee_asset = ''
 
+
 DataMerge("blockscout fees & multi-token transactions",
-          {'txns': blockscout_txns, 'tokens': blockscout_tokens, 'internal_txns': blockscout_internal_txns},
+          {'txns': {'req': DataMerge.MAN, 'obj': blockscout_txns},
+           'tokens': {'req': DataMerge.MAN, 'obj': blockscout_tokens},
+           'internal_txns': {'req': DataMerge.MAN, 'obj': blockscout_internal_txns}},
           merge_blockscout)

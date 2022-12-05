@@ -89,5 +89,5 @@ def merge_revolut(data_files):
 
 
 DataMerge("revolut",
-          {'txns': revolut_txns},
+          {'txns': {'req': DataMerge.MAN, 'obj': revolut_txns}},
           merge_revolut)
