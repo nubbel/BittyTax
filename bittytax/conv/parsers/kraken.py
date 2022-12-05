@@ -19,7 +19,7 @@ ALT_ASSETS = {'KFEE': 'FEE', 'XETC': 'ETC', 'XETH': 'ETH', 'XLTC': 'LTC', 'XMLN'
               'XXRP': 'XRP', 'XZEC': 'ZEC', 'ZAUD': 'AUD', 'ZCAD': 'CAD', 'ZEUR': 'EUR',
               'ZGBP': 'GBP', 'ZJPY': 'JPY', 'ZUSD': 'USD'}
 
-STAKING_ASSETS = {'XTZ.S': 'XTZ', 'DOT.S': 'DOT', 'ATOM.S': 'ATOM', 'ETH2.S': 'ETH2', 'SOL.S': 'SOL'}
+STAKING_ASSETS = {'XTZ.S': 'XTZ', 'DOT.S': 'DOT', 'DOT.P': 'DOT', 'ATOM.S': 'ATOM', 'ETH2.S': 'ETH2', 'SOL.S': 'SOL'}
 
 ASSETS_2CHARS = ['SC']
 
@@ -34,13 +34,15 @@ def parse_kraken_ledgers(data_row, parser, **_kwargs):
     data_row.timestamp = DataParser.parse_timestamp(row_dict['time'])
 
     if row_dict['type'] == "deposit":
+        wallet = STAKING_WALLET if row_dict['asset'] in STAKING_ASSETS else SPOT_WALLET
+
         data_row.t_record = TransactionOutRecord(TransactionOutRecord.TYPE_DEPOSIT,
                                                  data_row.timestamp,
                                                  buy_quantity=row_dict['amount'],
                                                  buy_asset=normalise_asset(row_dict['asset']),
                                                  fee_quantity=row_dict['fee'],
                                                  fee_asset=normalise_asset(row_dict['asset']),
-                                                 wallet=SPOT_WALLET)
+                                                 wallet=wallet)
     elif row_dict['type'] == "withdrawal":
         data_row.t_record = TransactionOutRecord(TransactionOutRecord.TYPE_WITHDRAWAL,
                                                  data_row.timestamp,
