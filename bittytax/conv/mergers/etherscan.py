@@ -94,6 +94,7 @@ STAKING = {
     # EasyStaking
     '0xecbcd6d7264e3c9eac24c7130ed3cd2b38f5a7ad': [
         # staking and reward token are both STAKE
+        '0x0ae055097c6d159879521c384f1d2123d1f195e6',
     ],
     # Indexcoop MVI Liquidity Program
     '0x5bc4249641b4bf4e37ef513f3fa5c63ecab34881': [
@@ -164,15 +165,6 @@ def do_merge_etherscan(data_files, staking_addresses, airdrop_addresses):
 
     for wallet in tx_ids:
         for txn in tx_ids[wallet]:
-            if len(tx_ids[wallet][txn]) == 1:
-                if config.debug:
-                    sys.stderr.write("%smerge: %s:%s\n" % (
-                        Fore.BLUE,
-                        tx_ids[wallet][txn][0].data_file_id.ljust(5),
-                        tx_ids[wallet][txn][0].data_row))
-                continue
-
-            
             for t in tx_ids[wallet][txn]:
                 if config.debug:
                     sys.stderr.write("%smerge: %s:%s\n" % (
@@ -181,13 +173,20 @@ def do_merge_etherscan(data_files, staking_addresses, airdrop_addresses):
                         t.data_row))
 
             t_ins, t_outs, t_fee = get_ins_outs(tx_ids[wallet][txn])
+
+            if len(tx_ids[wallet][txn]) == 1:
+                # handle airdrops sent directly to my wallet
+                do_handle_airdrops(None, t_ins, airdrop_addresses)
+                
+                continue
+            
             t_stakings = []
 
             if config.debug:
                 output_records(t_ins, t_outs, t_fee, t_stakings)
                 sys.stderr.write("%smerge:     consolidate:\n" % (Fore.YELLOW))
 
-            consolidate(tx_ids[wallet][txn], [TXNS, INTERNAL_TXNS])
+            consolidate(tx_ids[wallet][txn], [TXNS, INTERNAL_TXNS, TOKENS])
 
             t_ins, t_outs, t_fee = get_ins_outs(tx_ids[wallet][txn])
 
@@ -234,6 +233,9 @@ def do_merge_etherscan(data_files, staking_addresses, airdrop_addresses):
                 # Split fees
                 t_all = [t for t in t_ins_orig + t_outs if t.t_record]
                 do_fee_split(t_all, t_fee, fee_quantity, fee_asset)
+
+            # Add enter/exit staking txns
+            data_files[TOKENS].data_rows += t_stakings
 
             merge = True
 
@@ -283,7 +285,7 @@ def consolidate(tx_ids, file_ids):
             txn.data_row.t_record.buy_quantity = txn.quantity
             txn.data_row.t_record.sell_asset = ''
             txn.data_row.t_record.sell_quantity = None
-        elif tx_assets[asset].quantity < 0:
+        elif txn.quantity < 0:
             txn.data_row.t_record.t_type = TransactionOutRecord.TYPE_WITHDRAWAL
             txn.data_row.t_record.buy_asset = ''
             txn.data_row.t_record.buy_quantity = None
@@ -297,6 +299,7 @@ def consolidate(tx_ids, file_ids):
                 txn.data_row.t_record.sell_asset = asset
                 txn.data_row.t_record.sell_quantity = Decimal(0)
             else:
+                txn.data_row.t_record = None
                 tx_ids.remove(txn)
 
 def output_records(t_ins, t_outs, t_fee, t_stakings):
@@ -368,10 +371,11 @@ def do_etherscan_multi_sell(t_ins, t_outs, t_fee):
     for cnt, t_out in enumerate(t_outs):
         if cnt < len(t_outs) - 1:
             split_buy_quantity = (buy_quantity / len(t_outs)).quantize(PRECISION)
-            tot_buy_quantity += split_buy_quantity
         else:
             # Last t_out, use up remainder
             split_buy_quantity = buy_quantity - tot_buy_quantity
+        
+        tot_buy_quantity += split_buy_quantity
 
         if config.debug:
             sys.stderr.write("%smerge:       split_buy_quantity=%s\n" % (
@@ -383,6 +387,8 @@ def do_etherscan_multi_sell(t_ins, t_outs, t_fee):
         t_out.t_record.buy_asset = buy_asset
         if t_fee:
             t_out.t_record.note = get_note(t_fee.row_dict)
+
+    assert(tot_buy_quantity == buy_quantity)
 
     # Remove TR for buy now it's been added to each sell
     t_ins[0].t_record = None
@@ -404,10 +410,11 @@ def do_etherscan_multi_buy(t_ins, t_outs, t_fee):
     for cnt, t_in in enumerate(t_ins):
         if cnt < len(t_ins) - 1:
             split_sell_quantity = (sell_quantity / len(t_ins)).quantize(PRECISION)
-            tot_sell_quantity += split_sell_quantity
         else:
             # Last t_in, use up remainder
             split_sell_quantity = sell_quantity - tot_sell_quantity
+        
+        tot_sell_quantity += split_sell_quantity
 
         if config.debug:
             sys.stderr.write("%smerge:       split_sell_quantity=%s\n" % (
@@ -419,6 +426,8 @@ def do_etherscan_multi_buy(t_ins, t_outs, t_fee):
         t_in.t_record.sell_asset = sell_asset
         if t_fee:
             t_in.t_record.note = get_note(t_fee.row_dict)
+
+    assert(tot_sell_quantity == sell_quantity)
 
     # Remove TR for sell now it's been added to each buy
     t_outs[0].t_record = None
@@ -455,6 +464,11 @@ def get_staking_wallet(wallet):
     return "%s:Staking" % wallet
 
 def do_fee_split(t_all, t_fee, fee_quantity, fee_asset):
+    if not t_all:
+        assert(t_fee.t_record.fee_quantity == fee_quantity)
+        assert(t_fee.t_record.fee_asset == fee_asset)
+        return
+
     if config.debug:
         sys.stderr.write("%smerge:     split fees:\n" % (Fore.YELLOW))
         sys.stderr.write("%smerge:       fee_quantity=%s fee_asset=%s\n" % (
@@ -466,10 +480,11 @@ def do_fee_split(t_all, t_fee, fee_quantity, fee_asset):
     for cnt, t in enumerate(t_all):
         if cnt < len(t_all) - 1:
             split_fee_quantity = (fee_quantity / len(t_all)).quantize(PRECISION)
-            tot_fee_quantity += split_fee_quantity
         else:
             # Last t, use up remainder
             split_fee_quantity = fee_quantity - tot_fee_quantity if fee_quantity else None
+
+        tot_fee_quantity += split_fee_quantity
 
         if config.debug:
             sys.stderr.write("%smerge:       split_fee_quantity=%s\n" % (
@@ -479,6 +494,8 @@ def do_fee_split(t_all, t_fee, fee_quantity, fee_asset):
         t.t_record.fee_quantity = split_fee_quantity
         t.t_record.fee_asset = fee_asset
         t.t_record.note = get_note(t_fee.row_dict)
+
+    assert(tot_fee_quantity == fee_quantity)
 
     # Remove TR for fee now it's been added to each withdrawal
     if t_fee.t_record and t_fee not in t_all:
