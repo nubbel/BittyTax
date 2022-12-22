@@ -108,7 +108,12 @@ STAKING = {
     ],
     # dYdX
     '0x1e0447b19bb6ecfdae1e4ae1694b0c3659614e4e': [
-    ]
+    ],
+    # 1Inch GovernanceRewards
+    '0x0f85a912448279111694f4ba4f85dc641c54b594': [
+        # 1INCH
+        '0x111111111117dc0aa78b770fa6a738034120c302',
+    ],
 }
 
 AIRDROPS = {
@@ -136,7 +141,22 @@ AIRDROPS = {
     '0x42b38ca3e09c92ca82fa3659ca039188a6a076ac': [
         # FORCE
         '0x2c31b10ca416b82cec4c5e93c615ca851213d48d',
-    ]
+    ],
+    # CoinTool: MultiSender
+    '0x6ab037288582c4994c19bfe6190f9c523f81b9df': [
+        # ZCN
+        '0xb9ef770b6a5e12e45983c5d80545258aa38f3b78',
+    ],
+    # dYdX: Claims Proxy
+    '0x0fd829c3365a225fb9226e75c97c3a114bd3199e': [
+        # DYDX
+        '0x92d6c1e31e14520e676a687f0a93788b716beff5',
+    ],
+    # DappRadar: Airdrop
+    '0x2e424a4953940ae99f153a50d0139e7cd108c071': [
+        # RADAR
+        '0x44709a920fccf795fbc57baa433cc3dd53c44dbe',
+    ],
 }
 
 def merge_etherscan(data_files):
