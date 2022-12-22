@@ -11,9 +11,10 @@ from decimal import Decimal
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from colorama import Fore, Back
+from colorama import Fore, Back, Style
 import dateutil.parser
 import requests
+from requests_cache import CachedSession
 from web3 import Web3
 
 from ..version import __version__
@@ -41,14 +42,21 @@ class DataSourceBase(object):
         if not no_persist:
             atexit.register(self.dump_prices)
 
+        self.session = CachedSession(os.path.join(config.CACHE_DIR, 'requests', self.name()), 
+            allowable_methods=('GET', 'HEAD', 'POST'),
+            ignored_parameters=['apikey'])
+
     def name(self):
         return self.__class__.__name__
 
     def get_json(self, url):
-        if config.debug:
+        if config.debug:    
             print("%sprice: GET %s" % (Fore.YELLOW, url))
 
-        response = requests.get(url, headers={'User-Agent': self.USER_AGENT}, timeout=self.TIME_OUT)
+        response = self.session.get(url, headers={'User-Agent': self.USER_AGENT}, timeout=self.TIME_OUT)
+        if config.debug:
+            if response.from_cache:
+                print("%sprice: response loaded from cache (%s)%s" % (Style.DIM, response.created_at, Style.RESET_ALL))
 
         if response.status_code in [429, 502, 503, 504]:
             response.raise_for_status()
@@ -61,7 +69,7 @@ class DataSourceBase(object):
         if config.debug:
             print("%sprice: QUERY %s `%s`" % (Fore.YELLOW, url, query))
 
-        response = requests.post(
+        response = self.session.post(
             url,
             headers={
                 'User-Agent': self.USER_AGENT,
@@ -70,6 +78,10 @@ class DataSourceBase(object):
             timeout=self.TIME_OUT,
             json={'query': query}
         )
+
+        if config.debug:
+            if response.from_cache:
+                print("%sprice: response loaded from cache (%s)%s" % (Style.DIM, response.created_at, Style.RESET_ALL))
 
         if response.status_code in [429, 502, 503, 504]:
             response.raise_for_status()
@@ -175,8 +187,8 @@ class DataSourceBase(object):
 
             # Include any custom symbols as well
             for symbol in asset_list:
-                if self.assets[symbol] not in asset_list[symbol]:
-                    asset_list[symbol].append(self.assets[symbol])
+                if self.assets[symbol.upper()] not in asset_list[symbol]:
+                    asset_list[symbol].append(self.assets[symbol.upper()])
 
             return asset_list
         return {k: [{'id':None, 'name': v['name']}] for k, v in self.assets.items()}
@@ -508,16 +520,12 @@ class yVault(DataSourceBase):
 
 
     def get_historical(self, asset, quote, timestamp, asset_id=None):
-        print('DEBUG[yVault.get_historical]', asset, quote, timestamp, asset_id, self.assets[asset]['id'])
         if not asset_id:
             asset_id = self.assets[asset]['id']
 
         block = self.find_block(timestamp)
-        print('DEBUG[yVault.get_historical]   block', block.number, datetime.utcfromtimestamp(block.timestamp))
 
         price_per_share, token_symbol, _ = self.get_at_block(asset_id, block.number)   
-        print('DEBUG[yVault.get_historical]  price', price_per_share)
-        print('DEBUG[yVault.get_historical]  token_symbol', token_symbol)
 
         pair = self.pair(asset, token_symbol)
         data = {
@@ -669,16 +677,12 @@ class yVaultV2(DataSourceBase):
 
 
     def get_historical(self, asset, quote, timestamp, asset_id=None):
-        print('DEBUG[yVault.get_historical]', asset, quote, timestamp, asset_id, self.assets[asset]['id'])
         if not asset_id:
             asset_id = self.assets[asset]['id']
 
         block = self.find_block(timestamp)
-        print('DEBUG[yVault.get_historical]   block', block.number, datetime.utcfromtimestamp(block.timestamp))
 
         price_per_share, token_symbol, _ = self.get_at_block(asset_id, block.number)   
-        print('DEBUG[yVault.get_historical]  price', price_per_share)
-        print('DEBUG[yVault.get_historical]  token_symbol', token_symbol)
 
         pair = self.pair(asset, token_symbol)
         data = {

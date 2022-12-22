@@ -60,6 +60,7 @@ setup(
     install_requires=[
         'python-dateutil>=2.7.0',
         'requests',
+        'requests_cache',
         'pyyaml',
         'xlrd<=1.2.0',
         'xlsxwriter',
