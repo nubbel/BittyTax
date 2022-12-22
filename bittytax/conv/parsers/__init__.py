@@ -25,6 +25,7 @@ from . import cointracking
 from . import cryptocom
 from . import cryptopia
 from . import cryptsy
+from . import dydx
 from . import electrum
 from . import energyweb
 from . import etherscan
