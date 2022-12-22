@@ -99,10 +99,15 @@ STAKING = {
     # Indexcoop MVI Liquidity Program
     '0x5bc4249641b4bf4e37ef513f3fa5c63ecab34881': [
         # INDEX
-        '0x0954906da0Bf32d5479e25f46056d22f08464cab',
+        '0x0954906da0bf32d5479e25f46056d22f08464cab',
     ],
-    # Pickle
+    # Pickle Gauge
     '0xda481b277dce305b97f4091bd66595d57cf31634': [
+        # PICKLE
+        '0x429881672b9ae42b8eba0e26cd9c73711b891ca5',
+    ],
+     # Pickle Voting Escrow (DILL)
+    '0xbbcf169ee191a1ba7371f30a1c344bfc498b29cf': [
         # PICKLE
         '0x429881672b9ae42b8eba0e26cd9c73711b891ca5',
     ],
@@ -114,6 +119,11 @@ STAKING = {
         # 1INCH
         '0x111111111117dc0aa78b770fa6a738034120c302',
     ],
+    # AAVE Ecosystem Reserve
+    '0x25f2226b597e8f9514b3f68f00f494cf4f286491': [
+        # AAVE
+        '0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9',
+    ]
 }
 
 AIRDROPS = {
@@ -156,6 +166,13 @@ AIRDROPS = {
     '0x2e424a4953940ae99f153a50d0139e7cd108c071': [
         # RADAR
         '0x44709a920fccf795fbc57baa433cc3dd53c44dbe',
+    ],
+    # Disperse.app
+    '0xd152f549545093347a162dce210e7293f1452150': [
+        # GRT
+        '0xc944e90c64b2c07662a292be6244bdf05cda44a7',
+        # YEL
+        '0x7815bda662050d84718b988735218cffd32f75ea',
     ],
 }
 

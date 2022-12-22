@@ -749,6 +749,12 @@ class yVaultV2(DataSourceBase):
                 'token_address': '0x0bc529c00C6401aEF6D220BE8C6Ea1667F6Ad93e',
                 'token_symbol': 'YFI',
             },
+            '0xdb25cA703181E7484a155DD612b06f57E12Be5F0': {
+                'symbol': 'yvYFI-V2',
+                'name': 'YFI yVault (v2)',
+                'token_address': '0x0bc529c00C6401aEF6D220BE8C6Ea1667F6Ad93e',
+                'token_symbol': 'YFI',
+            },
             '0xB8C3B7A2A618C552C23B1E4701109a9E756Bab67': {
                 'symbol': 'yv1INCH',
                 'name': '1INCH yVault',

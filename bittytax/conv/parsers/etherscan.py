@@ -17,9 +17,12 @@ TOKENS = {
     '0x6f23d2fedb4ff4f1e9f8c521f66e5f2a1451b6f3': 'UNI-V2-MARK-ETH',
     '0x4d3c5db2c68f6859e0cd05d080979f597dd64bff': 'UNI-V2-MVI-ETH',
     '0x173f8ee61c0fe712cae2a2fc8d5c0ccdda57e6da': 'SNOW-yVault-USD',
+    '0x9461173740d27311b176476fa27e94c681b1ea6b': 'SLP-yvBOOST-ETH',
     '0xced67a187b923f0e5ebcc77c7f2f7da20099e378': 'pSLP-yvBOOST-ETH',
     '0x5dbcf33d8c2e976c6b560249878e6f1491bca25c': 'yUSD',
     '0x888888888877a56b4b809bf14bb76d63eb208297': 'OPIUM-NFT',
+    '0x35f5a420ef9bcc748329021fbd4ed0986abdf201': 'YEARN-NFT',
+    '0xdb25ca703181e7484a155dd612b06f57e12be5f0': 'yvYFI-V2'
 }
 
 def parse_etherscan(data_row, _parser, **kwargs):
@@ -100,7 +103,7 @@ def parse_etherscan_tokens(data_row, _parser, **kwargs):
 
     if row_dict['ContractAddress'] in TOKENS:
         asset = TOKENS[row_dict['ContractAddress']] 
-    elif row_dict['TokenSymbol'] == 'UNI-V2' or row_dict['TokenSymbol'].endswith('-LP'):
+    elif row_dict['TokenSymbol'] in ('UNI-V2', 'SLP') or row_dict['TokenSymbol'].endswith('-LP'):
         asset = row_dict['TokenSymbol'] + '-' + row_dict['ContractAddress'][0:10]
     else:
         asset = row_dict['TokenSymbol']
