@@ -168,18 +168,28 @@ def do_import(filename):
                 except xlrd.XLRDError:
                     with io.open(pathname, newline='', encoding='utf-8') as csv_file:
                         import_records.import_csv(csv_file)
+
+                
+                print("%simport %s %s (success=%s, failure=%s)" % (
+                    Fore.WHITE, pathname,
+                    'successful' if import_records.failure_cnt <= 0 else 'failure',
+                    import_records.success_cnt, import_records.failure_cnt))
+
+                if import_records.failure_cnt > 0:
+                    raise ImportFailureError
     else:
         if sys.version_info[0] < 3:
             import_records.import_csv(codecs.getreader('utf-8')(sys.stdin))
         else:
             import_records.import_csv(sys.stdin)
 
-    print("%simport %s (success=%s, failure=%s)" % (
-        Fore.WHITE, 'successful' if import_records.failure_cnt <= 0 else 'failure',
-        import_records.success_cnt, import_records.failure_cnt))
+        print("%simport %s (success=%s, failure=%s)" % (
+            Fore.WHITE,
+            'successful' if import_records.failure_cnt <= 0 else 'failure',
+            import_records.success_cnt, import_records.failure_cnt))
 
-    if import_records.failure_cnt > 0:
-        raise ImportFailureError
+        if import_records.failure_cnt > 0:
+            raise ImportFailureError
 
     return import_records.get_records()
 
