@@ -66,6 +66,11 @@ STAKING = {
     '0x892f481bd6e9d7d26ae365211d9b45175d5d00e4': [
         # staking token is vBNT, but no rewards
     ],
+    # Bancor StakingRewards
+    '0x4b90695c2013fc60df1e168c2bcd4fd12f5c9841': [
+        # BNT
+        '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c',
+    ],
     # Ampleforth Beehive V1 Geyser (Uniswap ETH-AMPL)
     '0x23796bc856ed786dcc505984fd538f91dad3194a': [
         # AMPL
