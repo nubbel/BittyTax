@@ -14,6 +14,7 @@ from pathlib import Path
 from colorama import Fore, Back, Style
 import dateutil.parser
 import requests
+import urllib.parse
 from requests_cache import CachedSession
 from web3 import Web3
 
@@ -343,7 +344,7 @@ class CoinGecko(DataSourceBase):
         self.ids = {c['id']: {'symbol': c['symbol'].strip().upper(), 'name': c['name'].strip()}
                     for c in json_resp}
         self.assets = {c['symbol'].strip().upper(): {'id': c['id'], 'name': c['name'].strip()}
-                       for c in json_resp}
+                       for c in reversed(json_resp)}
         self.get_config_assets()
 
     def get_latest(self, asset, quote, asset_id=None):
@@ -802,18 +803,18 @@ class HoneyswapSubgraph(DataSourceBase):
 
         self.get_config_assets()
 
-    def get_latest(self, asset, quote, asset_id=None):
+    def get_latest(self, asset, _, asset_id=None):
         if asset_id is None:
             asset_id = self.assets[asset]['id']
 
         json_resp = self.get_graphql(
             "https://api.thegraph.com/subgraphs/name/1hive/honeyswap-xdai",
-            "{ token(id: \"%s\") { priceUSD: derivedNativeCurrency } }" % asset_id,
+            "{ token(id: \"%s\") { priceNative: derivedNativeCurrency } }" % asset_id,
         )
 
-        return Decimal(json_resp['token']['priceUSD']) if 'token' in json_resp else None, 'USD'
+        return Decimal(json_resp['token']['priceNative']) if 'token' in json_resp else None, 'xDAI'
 
-    def get_historical(self, asset, quote, timestamp, asset_id=None):
+    def get_historical(self, asset, _, timestamp, asset_id=None):
         if not asset_id:
             asset_id = self.assets[asset]['id']
 
@@ -829,10 +830,102 @@ class HoneyswapSubgraph(DataSourceBase):
         self.update_prices(pair, {
             datetime.utcfromtimestamp(data['date']).strftime('%Y-%m-%d'): {
                 'price': Decimal(data['priceUSD']),
-                'url': "%s?query=%s" % (url, query),
+                'url': "%s/graphql?query=%s" % (url, urllib.parse.quote_plus(query)),
             }
             for data in json_resp['token']['tokenDayData']
 
         }, timestamp)
 
         return 'USD'
+
+class SushiswapSubgraph(DataSourceBase):
+    def __init__(self, no_persist=False):
+        super(SushiswapSubgraph, self).__init__(no_persist=no_persist)
+
+        json_resp = self.get_graphql(
+            "https://api.thegraph.com/subgraphs/name/sushiswap/exchange",
+            "{ pairs(where: { id_in: %s }) { id name } }" % (
+                json.dumps([ds.split(':')[1].lower() for symbol in config.data_source_select
+                                   for ds in config.data_source_select[symbol]
+                                   if ds.upper().startswith(self.name().upper())])
+            ),
+        )
+
+        self.ids = {
+            pair['id']: {
+                'symbol': symbol.replace("SLP-", ""),
+                'name': "SushiSwap " + pair['name'] + " Pool"
+            }
+            for pair in json_resp['pairs']
+            for symbol in config.data_source_select
+            for ds in config.data_source_select[symbol]
+            if pair['id'] in ds.lower()}
+
+        self.assets = {
+            self.ids[asset_id]['symbol'].upper(): {
+                'id': asset_id,
+                'name': self.ids[asset_id]['name']
+            }
+            for asset_id in self.ids
+        }
+
+        self.get_config_assets()
+
+    def get_latest(self, asset, _, asset_id=None):
+        if asset_id is None:
+            asset_id = self.assets[asset]['id']
+
+        json_resp = self.get_graphql(
+            "https://api.thegraph.com/subgraphs/name/sushiswap/exchange",
+            "{ pair(id: \"%s\") { reserveUSD totalSupply } }" % asset_id,
+        )
+
+        return Decimal(json_resp['pair']['reserveUSD']) / Decimal(json_resp['pair']['totalSupply']) if 'pair' in json_resp else None, 'USD'
+
+    def get_historical(self, asset, _, timestamp, asset_id=None):
+        if not asset_id:
+            asset_id = self.assets[asset]['id']
+
+        url = "https://api.thegraph.com/subgraphs/name/sushiswap/exchange"
+        query = "{ pair(id: \"%s\") { dayData(where:{date_gte:%d}) { date reserveUSD totalSupply } } }" % (
+            asset_id, 
+            self.epoch_time(timestamp) - 86400 # make sure requested timestamp is included
+        )
+
+        json_resp = self.get_graphql(url, query)
+
+        pair = self.pair(asset, 'USD')
+        self.update_prices(pair, {
+            datetime.utcfromtimestamp(data['date']).strftime('%Y-%m-%d'): {
+                'price': Decimal(data['reserveUSD']) / Decimal(data['totalSupply']),
+                'url': "%s/graphql?query=%s" % (url, urllib.parse.quote_plus(query)),
+            }
+            for data in json_resp['pair']['dayData']
+
+        }, timestamp)
+
+        return 'USD'
+
+
+# {
+#   pair(id:"0x9461173740d27311b176476fa27e94c681b1ea6b") {
+#     id
+#     name
+#     token0 {
+#       id
+#       symbol
+#     }
+#     token1 {
+#       id
+#       symbol
+#     }
+#     dayData(first:5, orderBy: date, orderDirection: desc) {
+#       id
+#       date
+#       reserveUSD
+#       totalSupply
+#       reserve0
+#       reserve1
+#     }
+#   }
+# }

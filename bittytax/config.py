@@ -95,7 +95,7 @@ class Config(object):
                 self.config[name] = default
 
         self.ccy = self.config['local_currency']
-        self.asset_priority = self.config['fiat_list'] + self.config['stablecoin_list'] + self.config['crypto_list']
+        self.asset_priority = self.config['fiat_list'] + self.config['stablecoin_list'] + self.config['crypto_list'] + list(self.config['data_source_select'])
 
     def __getattr__(self, name):
         try:

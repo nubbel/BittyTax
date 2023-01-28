@@ -71,6 +71,13 @@ STAKING = {
         # BNT
         '0x1f573d6fb3f13d689ff844b4ce37794d79a7ff1c',
     ],
+    # Bancor StakingRewardsClaim
+    '0x6248e4118818c9075a142ef8a12e09d49888af58': [
+        # vBNT
+        '0x48fb253446873234f2febbf9bdeaa72d9d387f94',
+        # bnBNT
+        '0xab05cf7c6c3a288cd36326e4f7b8600e7268e344',
+    ],
     # Ampleforth Beehive V1 Geyser (Uniswap ETH-AMPL)
     '0x23796bc856ed786dcc505984fd538f91dad3194a': [
         # AMPL
@@ -178,6 +185,11 @@ AIRDROPS = {
         '0xc944e90c64b2c07662a292be6244bdf05cda44a7',
         # YEL
         '0x7815bda662050d84718b988735218cffd32f75ea',
+    ],
+    # Arable Protocol
+    '0x095934290af634e613d898e39c190163b36887c0': [
+        # ACRE
+        '0xb2cabf797bc907b049e4ccb5b84d13be3a8cfc21',
     ],
 }
 

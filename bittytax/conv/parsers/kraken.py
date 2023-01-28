@@ -17,7 +17,7 @@ QUOTE_ASSETS = ['AUD', 'CAD', 'CHF', 'DAI', 'DOT', 'ETH', 'EUR', 'GBP', 'JPY', '
 ALT_ASSETS = {'KFEE': 'FEE', 'XETC': 'ETC', 'XETH': 'ETH', 'XLTC': 'LTC', 'XMLN': 'MLN',
               'XREP': 'REP', 'XXBT': 'XBT', 'XXDG': 'XDG', 'XXLM': 'XLM', 'XXMR': 'XMR',
               'XXRP': 'XRP', 'XZEC': 'ZEC', 'ZAUD': 'AUD', 'ZCAD': 'CAD', 'ZEUR': 'EUR',
-              'ZGBP': 'GBP', 'ZJPY': 'JPY', 'ZUSD': 'USD'}
+              'ZGBP': 'GBP', 'ZJPY': 'JPY', 'ZUSD': 'USD', 'LUNA': 'LUNC', 'LUNA2': 'LUNA'}
 
 STAKING_ASSETS = {'XTZ.S': 'XTZ', 'DOT.S': 'DOT', 'DOT.P': 'DOT', 'ATOM.S': 'ATOM', 'ETH2.S': 'ETH2', 'SOL.S': 'SOL'}
 
@@ -64,7 +64,10 @@ def parse_kraken_ledgers(data_row, parser, **_kwargs):
                                                  wallet=wallet)
 
     elif row_dict['type'] == "transfer":
-        if row_dict['subtype'] == "spottostaking":
+        if row_dict['subtype'] == "":
+            # ignore
+            return
+        elif row_dict['subtype'] == "spottostaking":
             data_row.t_record = TransactionOutRecord(TransactionOutRecord.TYPE_WITHDRAWAL,
                                                  data_row.timestamp,
                                                  sell_quantity=abs(Decimal(row_dict['amount'])),
@@ -82,7 +85,7 @@ def parse_kraken_ledgers(data_row, parser, **_kwargs):
                                                  fee_asset=normalise_asset(row_dict['asset']),
                                                  wallet=STAKING_WALLET,
                                                  note="unstake")
-        elif row_dict['subtype'] == "spotfromstaking":
+        elif row_dict['subtype'] in ("spotfromstaking", "spotfromfutures") :
             data_row.t_record = TransactionOutRecord(TransactionOutRecord.TYPE_DEPOSIT,
                                                  data_row.timestamp,
                                                  buy_quantity=row_dict['amount'],
@@ -126,6 +129,17 @@ def parse_kraken_ledgers(data_row, parser, **_kwargs):
                                                  fee_quantity=row_dict['fee'],
                                                  fee_asset=normalise_asset(row_dict['asset']),
                                                  wallet=SPOT_WALLET)
+
+    elif row_dict['type'] == "dividend":
+        wallet = STAKING_WALLET if row_dict['asset'] in STAKING_ASSETS else SPOT_WALLET
+
+        data_row.t_record = TransactionOutRecord(TransactionOutRecord.TYPE_AIRDROP,
+                                                 data_row.timestamp,
+                                                 buy_quantity=row_dict['amount'],
+                                                 buy_asset=normalise_asset(row_dict['asset']),
+                                                 fee_quantity=row_dict['fee'],
+                                                 fee_asset=normalise_asset(row_dict['asset']),
+                                                 wallet=wallet)
 
     else:
         raise UnexpectedTypeError(parser.in_header.index('type'), 'type', row_dict['type'])

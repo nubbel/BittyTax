@@ -22,7 +22,13 @@ TOKENS = {
     '0x5dbcf33d8c2e976c6b560249878e6f1491bca25c': 'yUSD',
     '0x888888888877a56b4b809bf14bb76d63eb208297': 'OPIUM-NFT',
     '0x35f5a420ef9bcc748329021fbd4ed0986abdf201': 'YEARN-NFT',
-    '0xdb25ca703181e7484a155dd612b06f57e12be5f0': 'yvYFI-V2'
+    '0xdb25ca703181e7484a155dd612b06f57e12be5f0': 'yvYFI-V2',
+
+    # Scam tokens
+    '0xbc9180be3d8014dd05b53876c487e79d79056022': None,
+    '0x5d80a8d8cb80696073e82407968600a37e1dd780': None,
+    '0xac4607a2d8a2bfa721955a23d3f290b0e176612e': None,
+    '0xfc40ba56a4d5b6c9a69c527bbf4322c4483af3e1': None,
 }
 
 def parse_etherscan(data_row, _parser, **kwargs):
@@ -103,6 +109,10 @@ def parse_etherscan_tokens(data_row, _parser, **kwargs):
 
     if row_dict['ContractAddress'] in TOKENS:
         asset = TOKENS[row_dict['ContractAddress']] 
+
+        if asset is None:
+            # ignore scam tokens
+            return
     elif row_dict['TokenSymbol'] in ('UNI-V2', 'SLP') or row_dict['TokenSymbol'].endswith('-LP'):
         asset = row_dict['TokenSymbol'] + '-' + row_dict['ContractAddress'][0:10]
     else:
