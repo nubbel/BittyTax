@@ -2,13 +2,12 @@
 # (c) Nano Nano Ltd 2019
 
 from decimal import Decimal
+import re
 
 from ...config import config
 from ..out_record import TransactionOutRecord
 from ..dataparser import DataParser
 from ..exceptions import DataFilenameError
-
-WALLET = "Ethereum"
 
 TOKENS = {
     '0x3b3d4eefdc603b232907a7f3d0ed1eea5c62b5f7': 'UNI-V2-STAKE-WETH-LP',
@@ -23,53 +22,79 @@ TOKENS = {
     '0x888888888877a56b4b809bf14bb76d63eb208297': 'OPIUM-NFT',
     '0x35f5a420ef9bcc748329021fbd4ed0986abdf201': 'YEARN-NFT',
     '0xdb25ca703181e7484a155dd612b06f57e12be5f0': 'yvYFI-V2',
+    '0xa3f1f5076499ec37d5bb095551f85ab5a344bb58': 'JLP-MIM-SDOG',
 
     # Scam tokens
     '0xbc9180be3d8014dd05b53876c487e79d79056022': None,
     '0x5d80a8d8cb80696073e82407968600a37e1dd780': None,
     '0xac4607a2d8a2bfa721955a23d3f290b0e176612e': None,
     '0xfc40ba56a4d5b6c9a69c527bbf4322c4483af3e1': None,
+    '0xd03392cf4f60fab2fbea38b7d2b826c70b0208a0': None,
+    '0xded4a9caf43dcc92a19b16f617031f07c5f236f9': None,
+    '0x4c4f4f4122c3a80d30c1ad6ad2828953015bd52c': None,
+    '0xf9d922c055a3f1759299467dafafdf43be844f7a': None,
 }
 
-def parse_etherscan(data_row, _parser, **kwargs):
+NETWORKS = {
+    'ETH': {
+        'name': 'Ethereum',
+        'explorer': 'Etherscan',
+    },
+    'AVAX': {
+        'name': 'Avalanche',
+        'explorer': 'Snowtrace',
+    },
+}
+
+def parse_etherscan(data_row, parser, **kwargs):
     row_dict = data_row.row_dict
     data_row.timestamp = DataParser.parse_timestamp(int(row_dict['UnixTimestamp']))
 
+    native_asset = kwargs['cryptoasset'] if kwargs['cryptoasset'] else 'ETH'
+    if parser.args[0]:
+        native_asset = parser.args[0].group(1)
+
+    network = NETWORKS[native_asset]
+
+    value_in = row_dict[f'Value_IN({native_asset})']
+    value_out = row_dict[f'Value_OUT({native_asset})']
+    fee = row_dict[f'TxnFee({native_asset})']
+
     if row_dict['Status'] != '' and row_dict['Status'] != 'Error(1)':
         # Failed transaction
-        row_dict['Value_IN(ETH)'] = row_dict['Value_OUT(ETH)'] = 0
+        value_in = value_out = 0
 
-    if Decimal(row_dict['Value_IN(ETH)']) > 0:
+    if Decimal(value_in) > 0:
         data_row.t_record = TransactionOutRecord(TransactionOutRecord.TYPE_DEPOSIT,
                                                  data_row.timestamp,
-                                                 buy_quantity=row_dict['Value_IN(ETH)'],
-                                                 buy_asset="ETH",
-                                                 wallet=get_wallet(row_dict['To']),
+                                                 buy_quantity=value_in,
+                                                 buy_asset=native_asset,
+                                                 wallet=get_wallet(row_dict['To'], network['name']),
                                                  note=get_note(row_dict))
-    elif Decimal(row_dict['Value_OUT(ETH)']) > 0:
+    elif Decimal(value_out) > 0:
         data_row.t_record = TransactionOutRecord(TransactionOutRecord.TYPE_WITHDRAWAL,
                                                  data_row.timestamp,
-                                                 sell_quantity=row_dict['Value_OUT(ETH)'],
-                                                 sell_asset="ETH",
-                                                 fee_quantity=row_dict['TxnFee(ETH)'],
-                                                 fee_asset="ETH",
-                                                 wallet=get_wallet(row_dict['From']),
+                                                 sell_quantity=value_out,
+                                                 sell_asset=native_asset,
+                                                 fee_quantity=fee,
+                                                 fee_asset=native_asset,
+                                                 wallet=get_wallet(row_dict['From'], network['name']),
                                                  note=get_note(row_dict))
     else:
         data_row.t_record = TransactionOutRecord(TransactionOutRecord.TYPE_SPEND,
                                                  data_row.timestamp,
-                                                 sell_quantity=row_dict['Value_OUT(ETH)'],
-                                                 sell_asset="ETH",
-                                                 fee_quantity=row_dict['TxnFee(ETH)'],
-                                                 fee_asset="ETH",
-                                                 wallet=get_wallet(row_dict['From']),
+                                                 sell_quantity=value_out,
+                                                 sell_asset=native_asset,
+                                                 fee_quantity=fee,
+                                                 fee_asset=native_asset,
+                                                 wallet=get_wallet(row_dict['From'], network['name']),
                                                  note=get_note(row_dict))
 
-def get_wallet(address):
+def get_wallet(address, network):
     if address.lower() in config.ethereum_wallets:
         return config.ethereum_wallets[address.lower()]
     
-    return "%s:%s" % (WALLET, address.lower()[0:TransactionOutRecord.WALLET_ADDR_LEN])
+    return "%s:%s" % (network, address.lower()[0:TransactionOutRecord.WALLET_ADDR_LEN])
 
 def get_note(row_dict):
     if row_dict['Status'] != '':
@@ -82,30 +107,43 @@ def get_note(row_dict):
 
     return row_dict.get('PrivateNote', '')
 
-def parse_etherscan_internal(data_row, _parser, **kwargs):
+def parse_etherscan_internal(data_row, parser, **kwargs):
     row_dict = data_row.row_dict
     data_row.timestamp = DataParser.parse_timestamp(int(row_dict['UnixTimestamp']))
 
-    # failed internal transaction
+    native_asset = kwargs['cryptoasset'] if kwargs['cryptoasset'] else 'ETH'
+    if parser.args[0]:
+        native_asset = parser.args[0].group(1)
+
+    network = NETWORKS[native_asset]
+
+    value_in = row_dict[f'Value_IN({native_asset})']
+    value_out = row_dict[f'Value_OUT({native_asset})']
+
     if row_dict['Status'] != '0':
-        row_dict['Value_IN(ETH)'] = row_dict['Value_OUT(ETH)'] = '0'
+        # Failed transaction
+        value_in = value_out = 0
+
 
     if row_dict['TxTo'].lower() in kwargs['filename'].lower():
         data_row.t_record = TransactionOutRecord(TransactionOutRecord.TYPE_DEPOSIT,
                                                  data_row.timestamp,
-                                                 buy_quantity=row_dict['Value_IN(ETH)'],
-                                                 buy_asset="ETH",
-                                                 wallet=get_wallet(row_dict['TxTo']))
+                                                 buy_quantity=value_in,
+                                                 buy_asset=native_asset,
+                                                 wallet=get_wallet(row_dict['TxTo'], network['name']))
     elif row_dict['From'].lower() in kwargs['filename'].lower():
         data_row.t_record = TransactionOutRecord(TransactionOutRecord.TYPE_WITHDRAWAL,
                                                  data_row.timestamp,
-                                                 sell_quantity=row_dict['Value_OUT(ETH)'],
-                                                 sell_asset="ETH",
-                                                 wallet=get_wallet(row_dict['From']))
+                                                 sell_quantity=value_out,
+                                                 sell_asset=native_asset,
+                                                 wallet=get_wallet(row_dict['From'], network['name']))
 
 def parse_etherscan_tokens(data_row, _parser, **kwargs):
     row_dict = data_row.row_dict
     data_row.timestamp = DataParser.parse_timestamp(int(row_dict['UnixTimestamp']))
+
+    native_asset = kwargs['cryptoasset'] if kwargs['cryptoasset'] else 'ETH'
+    network = NETWORKS[native_asset]
 
     if row_dict['ContractAddress'] in TOKENS:
         asset = TOKENS[row_dict['ContractAddress']] 
@@ -113,7 +151,7 @@ def parse_etherscan_tokens(data_row, _parser, **kwargs):
         if asset is None:
             # ignore scam tokens
             return
-    elif row_dict['TokenSymbol'] in ('UNI-V2', 'SLP') or row_dict['TokenSymbol'].endswith('-LP'):
+    elif row_dict['TokenSymbol'] in ('UNI-V2', 'SLP', 'pSLP', 'JLP') or row_dict['TokenSymbol'].endswith('-LP'):
         asset = row_dict['TokenSymbol'] + '-' + row_dict['ContractAddress'][0:10]
     else:
         asset = row_dict['TokenSymbol']
@@ -126,13 +164,13 @@ def parse_etherscan_tokens(data_row, _parser, **kwargs):
                                                  data_row.timestamp,
                                                  buy_quantity=row_dict['Value'].replace(',', ''),
                                                  buy_asset=asset,
-                                                 wallet=get_wallet(row_dict['To']))
+                                                 wallet=get_wallet(row_dict['To'], network['name']))
     elif row_dict['From'].lower() in kwargs['filename'].lower():
         data_row.t_record = TransactionOutRecord(TransactionOutRecord.TYPE_WITHDRAWAL,
                                                  data_row.timestamp,
                                                  sell_quantity=row_dict['Value'].replace(',', ''),
                                                  sell_asset=asset,
-                                                 wallet=get_wallet(row_dict['From']))
+                                                 wallet=get_wallet(row_dict['From'], network['name']))
     else:
         raise DataFilenameError(kwargs['filename'], "Ethereum address")
 
@@ -140,6 +178,9 @@ def parse_etherscan_tokens(data_row, _parser, **kwargs):
 def parse_etherscan_nfts(data_row, _parser, **kwargs):
     row_dict = data_row.row_dict
     data_row.timestamp = DataParser.parse_timestamp(int(row_dict['UnixTimestamp']))
+
+    native_asset = kwargs['cryptoasset'] if kwargs['cryptoasset'] else 'ETH'
+    network = NETWORKS[native_asset]
 
     if not 'TokenValue' in row_dict:
         row_dict['TokenValue'] = '1'
@@ -153,98 +194,103 @@ def parse_etherscan_nfts(data_row, _parser, **kwargs):
                                                  data_row.timestamp,
                                                  buy_quantity=int(row_dict['TokenValue']),
                                                  buy_asset=asset,
-                                                 wallet=get_wallet(row_dict['To']))
+                                                 wallet=get_wallet(row_dict['To'], network['name']))
     elif row_dict['From'].lower() in kwargs['filename'].lower():
         data_row.t_record = TransactionOutRecord(TransactionOutRecord.TYPE_WITHDRAWAL,
                                                  data_row.timestamp,
                                                  sell_quantity=int(row_dict['TokenValue']),
                                                  sell_asset=asset,
-                                                 wallet=get_wallet(row_dict['From']))
+                                                 wallet=get_wallet(row_dict['From'], network['name']))
     else:
         raise DataFilenameError(kwargs['filename'], "Ethereum address")
 
+
 etherscan_txns = DataParser(
-        DataParser.TYPE_EXPLORER,
-        "Etherscan (ETH Transactions)",
-        ['Txhash', 'Blockno', 'UnixTimestamp', 'DateTime', 'From', 'To', 'ContractAddress',
-         'Value_IN(ETH)', 'Value_OUT(ETH)', None, 'TxnFee(ETH)', 'TxnFee(USD)',
-         'Historical $Price/Eth', 'Status', 'ErrCode'],
-        worksheet_name="Etherscan Txns",
-        row_handler=parse_etherscan)
+    DataParser.TYPE_EXPLORER,
+    "Etherscan (ETH Transactions)",
+    ['Txhash', 'Blockno', 'UnixTimestamp', 'DateTime', 'From', 'To', 'ContractAddress',
+     lambda c: re.match(r"Value_IN\((\w+)\)", c), lambda c: re.match(r"Value_OUT\((\w+)\)", c)
+     , None, lambda c: re.match(r"TxnFee\((\w+)\)", c), 'TxnFee(USD)',
+     None, 'Status', 'ErrCode'],
+    worksheet_name="Txns",
+    row_handler=parse_etherscan)
 
 DataParser(
-        DataParser.TYPE_EXPLORER,
-        "Etherscan (ETH Transactions)",
-        ['Txhash', 'Blockno', 'UnixTimestamp', 'DateTime', 'From', 'To', 'ContractAddress',
-         'Value_IN(ETH)', 'Value_OUT(ETH)', None, 'TxnFee(ETH)', 'TxnFee(USD)',
-         'Historical $Price/Eth', 'Status', 'ErrCode', 'PrivateNote'],
-        worksheet_name="Etherscan Txns",
-        row_handler=parse_etherscan)
+    DataParser.TYPE_EXPLORER,
+    "Etherscan (ETH Transactions)",
+    ['Txhash', 'Blockno', 'UnixTimestamp', 'DateTime', 'From', 'To', 'ContractAddress',
+     lambda c: re.match(r"Value_IN\((\w+)\)", c), lambda c: re.match(r"Value_OUT\((\w+)\)", c)
+     , None, lambda c: re.match(r"TxnFee\((\w+)\)", c), 'TxnFee(USD)',
+     None, 'Status', 'ErrCode', 'PrivateNote'],
+    worksheet_name="Txns",
+    row_handler=parse_etherscan)
 
 DataParser(DataParser.TYPE_EXPLORER,
            "Etherscan (ETH Transactions)",
            ['Txhash', 'Blockno', 'UnixTimestamp', 'DateTime', 'From', 'To', 'ContractAddress',
-            'Value_IN(ETH)', 'Value_OUT(ETH)', None, 'TxnFee(ETH)', 'TxnFee(USD)',
-            'Historical $Price/Eth', 'Status', 'ErrCode', 'Method'],
-           worksheet_name="Etherscan Txns",
+            lambda c: re.match(r"Value_IN\((\w+)\)", c), lambda c: re.match(r"Value_OUT\((\w+)\)", c), None,
+            lambda c: re.match(r"TxnFee\((\w+)\)", c), 'TxnFee(USD)',
+            None, 'Status', 'ErrCode', 'Method'],
+           worksheet_name="Txns",
            row_handler=parse_etherscan)
 
 DataParser(DataParser.TYPE_EXPLORER,
            "Etherscan (ETH Transactions)",
            ['Txhash', 'Blockno', 'UnixTimestamp', 'DateTime', 'From', 'To', 'ContractAddress',
-            'Value_IN(ETH)', 'Value_OUT(ETH)', None, 'TxnFee(ETH)', 'TxnFee(USD)',
-            'Historical $Price/Eth', 'Status', 'ErrCode', 'Method', 'PrivateNote'],
-           worksheet_name="Etherscan Txns",
+            lambda c: re.match(r"Value_IN\((\w+)\)", c), lambda c: re.match(r"Value_OUT\((\w+)\)", c),
+            None, lambda c: re.match(r"TxnFee\((\w+)\)", c), 'TxnFee(USD)',
+            None, 'Status', 'ErrCode', 'Method', 'PrivateNote'],
+           worksheet_name="Txns",
            row_handler=parse_etherscan)
 
 etherscan_int = DataParser(
-        DataParser.TYPE_EXPLORER,
-        "Etherscan (ETH Internal Transactions)",
-        ['Txhash', 'Blockno', 'UnixTimestamp', 'DateTime', 'ParentTxFrom', 'ParentTxTo',
-         'ParentTxETH_Value', 'From', 'TxTo', 'ContractAddress', 'Value_IN(ETH)',
-         'Value_OUT(ETH)', None, 'Historical $Price/Eth', 'Status', 'ErrCode', 'Type'],
-        worksheet_name="Etherscan Internal Txns",
-        row_handler=parse_etherscan_internal)
+    DataParser.TYPE_EXPLORER,
+    "Etherscan (ETH Internal Transactions)",
+    ['Txhash', 'Blockno', 'UnixTimestamp', 'DateTime', 'ParentTxFrom', 'ParentTxTo',
+     None, 'From', 'TxTo', 'ContractAddress', lambda c: re.match(r"Value_IN\((\w+)\)", c),
+     lambda c: re.match(r"Value_OUT\((\w+)\)", c), None, None, 'Status', 'ErrCode', 'Type'],
+    worksheet_name="Internal Txns",
+    row_handler=parse_etherscan_internal)
 
 DataParser(DataParser.TYPE_EXPLORER,
            "Etherscan (ETH Internal Transactions)",
            ['Txhash', 'Blockno', 'UnixTimestamp', 'DateTime', 'ParentTxFrom', 'ParentTxTo',
-            'ParentTxETH_Value', 'From', 'TxTo', 'ContractAddress', 'Value_IN(ETH)',
-            'Value_OUT(ETH)', None, 'Historical $Price/Eth', 'Status', 'ErrCode', 'Type',
+            None, 'From', 'TxTo', 'ContractAddress', lambda c: re.match(r"Value_IN\((\w+)\)", c),
+            lambda c: re.match(r"Value_OUT\((\w+)\)", c), None, None, 'Status', 'ErrCode', 'Type',
             'PrivateNote'],
-           worksheet_name="Etherscan Internal Txns",
+           worksheet_name="Internal Txns",
            row_handler=parse_etherscan_internal)
 
 etherscan_tokens = DataParser(
-        DataParser.TYPE_EXPLORER,
-        "Etherscan (ERC-20 Tokens)",
-        ['Txhash', 'UnixTimestamp', 'DateTime', 'From', 'To', 'Value', 'ContractAddress',
-         'TokenName', 'TokenSymbol'],
-        worksheet_name="Etherscan Tokens",
-        row_handler=parse_etherscan_tokens)
+    DataParser.TYPE_EXPLORER,
+    "Etherscan (ERC-20 Tokens)",
+    ['Txhash', 'UnixTimestamp', 'DateTime', 'From', 'To', 'Value', 'ContractAddress',
+     'TokenName', 'TokenSymbol'],
+    worksheet_name="Tokens",
+    row_handler=parse_etherscan_tokens)
 
 DataParser(
-        DataParser.TYPE_EXPLORER,
-        "Etherscan (ERC-20 Tokens)",
-        ['Txhash','Blockno','UnixTimestamp','DateTime','From','To','TokenValue',
-         'USDValueDayOfTx','ContractAddress','TokenName','TokenSymbol'],
-        worksheet_name="Etherscan Tokens",
-        row_handler=parse_etherscan_tokens)
+    DataParser.TYPE_EXPLORER,
+    "Etherscan (ERC-20 Tokens)",
+    ['Txhash', 'Blockno', 'UnixTimestamp', 'DateTime', 'From', 'To', 'TokenValue',
+     'USDValueDayOfTx', 'ContractAddress', 'TokenName', 'TokenSymbol'],
+    worksheet_name="Tokens",
+    row_handler=parse_etherscan_tokens)
 
 etherscan_nfts = DataParser(
-        DataParser.TYPE_EXPLORER,
-        "Etherscan (ERC-721/ERC-1155 NFTs)",
-        ['Txhash', 'UnixTimestamp', 'DateTime', 'From', 'To', 'ContractAddress', 'TokenId',
-         'TokenName', 'TokenSymbol'],
-        worksheet_name="Etherscan NFTs",
-        row_handler=parse_etherscan_nfts)
+    DataParser.TYPE_EXPLORER,
+    "Etherscan (ERC-721/ERC-1155 NFTs)",
+    ['Txhash', 'UnixTimestamp', 'DateTime', 'From', 'To', 'ContractAddress', 'TokenId',
+     'TokenName', 'TokenSymbol'],
+    worksheet_name="NFTs",
+    row_handler=parse_etherscan_nfts)
 
 DataParser(
     DataParser.TYPE_EXPLORER,
     "Etherscan (ERC-721/ERC-1155 NFTs)",
     ['Txhash', 'Blockno', 'UnixTimestamp', 'DateTime', 'From', 'To', 'ContractAddress', 'TokenId',
      'TokenName', 'TokenSymbol'],
-    worksheet_name="Etherscan NFTs",
+    worksheet_name="NFTs",
     row_handler=parse_etherscan_nfts)
 
 DataParser(
@@ -252,6 +298,5 @@ DataParser(
     "Etherscan (ERC-721/ERC-1155 NFTs)",
     ['Txhash', 'Blockno', 'UnixTimestamp', 'DateTime', 'From', 'To', 'ContractAddress', 'TokenId',
      'TokenValue', 'TokenName', 'TokenSymbol'],
-    worksheet_name="Etherscan NFTs",
+    worksheet_name="NFTs",
     row_handler=parse_etherscan_nfts)
-

@@ -135,7 +135,12 @@ STAKING = {
     '0x25f2226b597e8f9514b3f68f00f494cf4f286491': [
         # AAVE
         '0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9',
-    ]
+    ], 
+    # # Snowdog DAO: SDOG Bond Depository
+    # '0x2c8ba2705f5fb5ac7217f6c275114725f2f4b88c': [
+    #     # sSDOG
+    #     '0x10720a029a5e5281391be3181477e48d47d0ff91',
+    # ],
 }
 
 AIRDROPS = {
@@ -191,6 +196,15 @@ AIRDROPS = {
         # ACRE
         '0xb2cabf797bc907b049e4ccb5b84d13be3a8cfc21',
     ],
+    # Betswap
+    '0xedd1cb10d6dde82c805f7fc9988ee3d89c115e34': [
+        # BSGG
+        '0x63682bdc5f875e9bf69e201550658492c9763f89',
+    ],
+    '0xff8f089128f53d6c54f769843defaaf5fbf02198': [
+        # MEMO
+        '0x136acd46c134e8269052c62a67042d6bdedde3c9',
+    ]
 }
 
 def merge_etherscan(data_files):
@@ -264,9 +278,9 @@ def do_merge_etherscan(data_files, staking_addresses, airdrop_addresses):
                 do_etherscan_multi_sell(t_ins, t_outs, t_fee)
             elif len(t_outs) == 1 and t_ins:
                 do_etherscan_multi_buy(t_ins, t_outs, t_fee)
-            elif not t_ins:
+            elif not t_ins and t_fee:
                 do_enter_staking(t_fee, t_outs, staking_addresses, t_stakings)
-            elif not t_outs:
+            elif not t_outs and t_fee:
                 do_exit_staking(t_fee, t_ins, staking_addresses, t_stakings)
             elif len(t_ins) > 1 and len(t_outs) > 1:
                 # multi-sell to multi-buy trade not supported

@@ -31,7 +31,7 @@ class AssetData(object):
                 assets = self.data_sources[ds].get_list()
             else:
                 assets = {}
-                assets[req_symbol] = self.data_sources[ds].get_list().get(req_symbol, [])
+                assets[req_symbol] = self.data_sources[ds].get_list().get(req_symbol.upper(), [])
             for symbol in assets:
                 for asset_id in assets[symbol]:
                     if search_terms:

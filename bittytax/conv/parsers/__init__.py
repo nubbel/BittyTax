@@ -53,7 +53,6 @@ from . import polygonscan
 from . import qtrade
 from . import portfolio_performance
 from . import qtwallet
-from . import snowtrace
 from . import revolut
 from . import tradesatoshi
 from . import trezor

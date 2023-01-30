@@ -5,6 +5,7 @@ import os
 import atexit
 import json
 import platform
+import re
 import urllib
 
 from decimal import Decimal
@@ -315,13 +316,13 @@ class CryptoCompare(DataSourceBase):
 
     def get_latest(self, asset, quote, _asset_id=None):
         json_resp = self.get_json("https://min-api.cryptocompare.com/data/price" \
-            "?extraParams=%s&fsym=%s&tsyms=%s" % (self.USER_AGENT, asset, quote))
+            "?extraParams=%s&fsym=%s&tsyms=%s" % (urllib.parse.quote(self.USER_AGENT), asset, quote))
         return Decimal(repr(json_resp[quote])) if quote in json_resp else None, quote
 
     def get_historical(self, asset, quote, timestamp, _asset_id=None):
         url = "https://min-api.cryptocompare.com/data/histoday?aggregate=1&extraParams=%s" \
               "&fsym=%s&tsym=%s&limit=%s&toTs=%d" % (
-                  self.USER_AGENT, asset, quote, CRYPTOCOMPARE_MAX_DAYS,
+                  urllib.parse.quote(self.USER_AGENT), asset, quote, CRYPTOCOMPARE_MAX_DAYS,
                   self.epoch_time(timestamp + timedelta(days=CRYPTOCOMPARE_MAX_DAYS)))
 
         json_resp = self.get_json(url)
@@ -905,27 +906,3 @@ class SushiswapSubgraph(DataSourceBase):
         }, timestamp)
 
         return 'USD'
-
-
-# {
-#   pair(id:"0x9461173740d27311b176476fa27e94c681b1ea6b") {
-#     id
-#     name
-#     token0 {
-#       id
-#       symbol
-#     }
-#     token1 {
-#       id
-#       symbol
-#     }
-#     dayData(first:5, orderBy: date, orderDirection: desc) {
-#       id
-#       date
-#       reserveUSD
-#       totalSupply
-#       reserve0
-#       reserve1
-#     }
-#   }
-# }
