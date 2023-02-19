@@ -105,8 +105,6 @@ STAKING = {
     ],
     # EasyStaking
     '0xecbcd6d7264e3c9eac24c7130ed3cd2b38f5a7ad': [
-        # staking and reward token are both STAKE
-        '0x0ae055097c6d159879521c384f1d2123d1f195e6',
     ],
     # Indexcoop MVI Liquidity Program
     '0x5bc4249641b4bf4e37ef513f3fa5c63ecab34881': [
@@ -135,12 +133,30 @@ STAKING = {
     '0x25f2226b597e8f9514b3f68f00f494cf4f286491': [
         # AAVE
         '0x7fc66500c84a76ad7e9c93437bfc5ac33e2ddae9',
-    ], 
-    # # Snowdog DAO: SDOG Bond Depository
-    # '0x2c8ba2705f5fb5ac7217f6c275114725f2f4b88c': [
-    #     # sSDOG
-    #     '0x10720a029a5e5281391be3181477e48d47d0ff91',
-    # ],
+    ],
+    # HNY-WXDAI Farm
+    '0x8520fc4c282342f8e746b881b9b60c14f96a0fab': [
+        # HNY
+        '0x71850b7e9ee3f13ab46d67167341e4bdc905eef9',
+    ],
+    # HNY-STAKE Farm
+    '0xa6c55971f21cc1c35ea617f47980d669a0c09cf3': [
+        # HNY
+        '0x71850b7e9ee3f13ab46d67167341e4bdc905eef9',
+    ],
+    # Honey Farm V2
+    '0xb44825cf0d8d4dd552f2434056c41582415aaaa1': [
+        # xCOMB
+        '0x38fb649ad3d6ba1113be5f57b927053e97fc5bf7',
+    ],
+    # Celeste
+    '0x8c9968a2b16bc1cd0ead74f5eef25e899e795501': [
+        # no rewards
+    ],
+    # 1Hive Staking
+    '0x0e25b918c9fb2fea5d42011d1f4b9f8c61b453e7': [
+        # no rewards
+    ],
 }
 
 AIRDROPS = {
@@ -204,6 +220,30 @@ AIRDROPS = {
     '0xff8f089128f53d6c54f769843defaaf5fbf02198': [
         # MEMO
         '0x136acd46c134e8269052c62a67042d6bdedde3c9',
+    ],
+    # xDAI Faucet
+    '0x97AAE423C9A1Bc9cf2D81f9f1299b117A7b01136': [
+        # xDAI
+    ],
+    # Honey Faucet
+    '0x967ebb4343c442d19a47b9196d121bd600600911': [
+        # HNY
+        '0x71850b7e9ee3f13ab46d67167341e4bdc905eef9',
+    ],
+    # xCOMB Airdrop
+    '0xdd36008685108afafc11f88bbc66c39a851df843': [
+        # xCOMB
+        '0x38fb649ad3d6ba1113be5f57b927053e97fc5bf7'
+    ],
+    # Freedom Reserve Airdrop
+    '0xa5025faba6e70b84f74e9b1113e5f7f4e7f4859f': [
+        # FR
+        '0x270de58f54649608d316faa795a9941b355a2bd0',
+    ],
+    # Agave Airdeop
+    '0xfd97188bcaf9fc0df5ab0a6cca263c3aada1f382': [
+        # AGVE
+        '0x3a97704a1b25f08aa230ae53b352e2e72ef52843',
     ]
 }
 
@@ -254,7 +294,7 @@ def do_merge_etherscan(data_files, staking_addresses, airdrop_addresses):
                 output_records(t_ins, t_outs, t_fee, t_stakings)
                 sys.stderr.write("%smerge:     consolidate:\n" % (Fore.YELLOW))
 
-            consolidate(tx_ids[wallet][txn], [TXNS, INTERNAL_TXNS, TOKENS])
+            consolidate(tx_ids[wallet][txn], [TXNS, INTERNAL_TXNS, TOKENS, NFTS])
 
             t_ins, t_outs, t_fee = get_ins_outs(tx_ids[wallet][txn])
 
@@ -344,6 +384,9 @@ def consolidate(tx_ids, file_ids):
             tx_assets[asset].quantity += txn.data_row.t_record.get_quantity()
             txn.data_row.t_record = None
             tx_ids.remove(txn)
+
+        if txn.data_row.row_dict['Txhash'] == '0x9d804af552cd7515dce8a41261e33906ce5bb26576a11fc2d53b6c22931d72d3':
+            print('[DEBUG]', asset, tx_assets[asset].quantity)
 
     for asset in tx_assets:
         txn = tx_assets[asset]

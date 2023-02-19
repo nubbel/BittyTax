@@ -22,7 +22,16 @@ TOKENS = {
     '0x888888888877a56b4b809bf14bb76d63eb208297': 'OPIUM-NFT',
     '0x35f5a420ef9bcc748329021fbd4ed0986abdf201': 'YEARN-NFT',
     '0xdb25ca703181e7484a155dd612b06f57e12be5f0': 'yvYFI-V2',
+
+    # Avalanche
     '0xa3f1f5076499ec37d5bb095551f85ab5a344bb58': 'JLP-MIM-SDOG',
+
+    # Gnosis
+    '0x4505b262dc053998c10685dc5f9098af8ae5c8ad': 'HNY-WXDAI-LP',
+    '0x298c7326a6e4a6108b88520f285c7dc89403347d': 'HNY-STAKE-LP',
+    '0x9e8e5e4a0900fe4634c02aaf0f130cfb93c53fbc': 'XCOMB-WXDAI-LP',
+    '0x50a4867aee9cafd6ddc84de3ce59df027cb29084': 'AGVE-HNY-LP',
+    '0x159eb41b54ae70d912f3e426bfdfa19888faa807': 'HNY-COLD-LP',
 
     # Scam tokens
     '0xbc9180be3d8014dd05b53876c487e79d79056022': None,
@@ -43,6 +52,10 @@ NETWORKS = {
     'AVAX': {
         'name': 'Avalanche',
         'explorer': 'Snowtrace',
+    },
+    'xDAI': {
+        'name': 'Gnosis',
+        'explorer': 'Gnosisscan',
     },
 }
 
