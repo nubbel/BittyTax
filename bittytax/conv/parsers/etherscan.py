@@ -33,6 +33,16 @@ TOKENS = {
     '0x50a4867aee9cafd6ddc84de3ce59df027cb29084': 'AGVE-HNY-LP',
     '0x159eb41b54ae70d912f3e426bfdfa19888faa807': 'HNY-COLD-LP',
 
+    # Polygon
+    '0xc4e595acdd7d12fec385e5da5d43160e8a0bac0e': 'SLP-WMATIC-WETH',
+    '0x019ba0325f1988213d448b3472fa1cf8d07618d7': 'UNI-V2-WMATIC-QUICK',
+    '0xcd353f79d9fade311fc3119b841e1f456b54e858': 'SLP-WMATIC-USDC',
+    '0xc1dd63ca154837ac4356d888f7c10fbbe442407e': 'APE-LP-WMATIC-YELD',
+    # '0x949fdf28f437258e7564a35596b1a99b24f81e4e': 'PLP-WMATIC-WETH',
+    # '0xa0273c10b8a4bf0bdc57cb0bc974e3a9d89527b8': 'PLP-WMATIC-WETH',
+    '0x6e7a5fafcec6bb1e78bae2a1f0b612012bf14827': 'UNI-V2-WMATIC-USDC',
+    '0xadbf1854e5883eb8aa7baf50705338739e558e5b': 'UNI-V2-WMATIC-WETH',
+
     # Scam tokens
     '0xbc9180be3d8014dd05b53876c487e79d79056022': None,
     '0x5d80a8d8cb80696073e82407968600a37e1dd780': None,
@@ -42,6 +52,46 @@ TOKENS = {
     '0xded4a9caf43dcc92a19b16f617031f07c5f236f9': None,
     '0x4c4f4f4122c3a80d30c1ad6ad2828953015bd52c': None,
     '0xf9d922c055a3f1759299467dafafdf43be844f7a': None,
+    '0x8a0b040f27407d7a603bca701b857f8f81a1c7af': None,
+    '0x19a935cbaaa4099072479d521962588d7857d717': None,
+    '0xdad0d08d5b0544fc853682c6ca07eaab201bd550': None,
+    '0x9fd4969573f9dec7882409709c9b35f2dc3074ca': None,
+    '0xa9316e1909edf3ed33b0dd1c6631c50b82c6e142': None,
+    '0xaaa5b9e6c589642f98a1cda99b9d024b8407285a': None,
+    '0x8ae127d224094cb1b27e1b28a472e588cbcc7620': None,
+    '0xe4fb1bb8423417a460286b0ed44b64e104c5fae5': None,
+    '0x0ef2603cd156e1934e19d0b07cd64f415e1e7940': None,
+    '0xe4fb1bb8423417a460286b0ed44b64e104c5fae5': None,
+    '0xcbf4ab00b6aa19b4d5d29c7c3508b393a1c01fe3': None,
+    '0xe4fb1bb8423417a460286b0ed44b64e104c5fae5': None,
+    '0x81067076dcb7d3168ccf7036117b9d72051205e2': None,
+    '0xa39b14f57087aa5f16b941e5ec182b84a5432aa7': None,
+    '0x81067076dcb7d3168ccf7036117b9d72051205e2': None,
+    '0x02677c45fa858b9ffec24fc791bf72cdf4a8a8df': None,
+    '0xa85f8a198d59f0fda82333be9aeeb50f24dd59ff': None,
+    '0xc68e83a305b0fad69e264a1769a0a070f190d2d6': None,
+    '0x22e51bae3f545255e115090202a23c7ede0b00b9': None,
+    '0x14f2c84a58e065c846c5fdddade0d3548f97a517': None,
+    '0x95e9464b5cc3bf81210259812b51665a437aa11b': None,
+    '0x3c0bd2118a5e61c41d2adeebcb8b7567fde1cbaf': None,
+    '0xf31cdb090d1d4b86a7af42b62dc5144be8e42906': None,
+    '0xdc8fa3fab8421ff44cc6ca7f966673ff6c0b3b58': None,
+    '0x0f1f17e4260515d9bfe805cff323374eb771eae6': None,
+    '0x5229cadb824fd5117f00e3614c138b62f2bd3156': None,
+    '0x8a6b62f5501410d179641e731a8f1cecef1c28ec': None,
+    '0x3a8ffb79435c967a565ce9d2134b1254d9c5e1a5': None,
+    '0xcf68f02d7dd6a4642ae6a77f6a3676d0cbc834c9': None,
+    '0xf9d3d8b25b95bcda979025b74fdfa7ac3f380f9f': None,
+    '0xa23cd4da2400b31bcf18e3a8f27578c706dbf902': None,
+    '0x6b748903c3d9135acf65f5be488f4be06d557f82': None,
+    '0x6142f62e7996faec5c5bb9d10669d60299d69dfe': None,
+    '0x8a953cfe442c5e8855cc6c61b1293fa648bae472': None,
+    '0x0b91b07beb67333225a5ba0259d55aee10e3a578': None,
+    '0xaf6b1a3067bb5245114225556e5b7a52cf002752': None,
+    '0x5de9eb5baa578666dfcdc00d3b2ee3f94c4f1c55': None,
+    '0x1c0aaf256f581774e21d1fae64244c6676bff04c': None,
+    '0x8888888889953bdaa9a7273ba13c80918823ba71': None,
+    '0x68c929e7b8fb06c58494a369f6f088fff28f7c77': None,
 }
 
 NETWORKS = {
@@ -56,6 +106,10 @@ NETWORKS = {
     'xDAI': {
         'name': 'Gnosis',
         'explorer': 'Gnosisscan',
+    },
+    'MATIC': {
+        'name': 'Polygon',
+        'explorer': 'Polygonscan',
     },
 }
 
@@ -164,7 +218,7 @@ def parse_etherscan_tokens(data_row, _parser, **kwargs):
         if asset is None:
             # ignore scam tokens
             return
-    elif row_dict['TokenSymbol'] in ('UNI-V2', 'SLP', 'pSLP', 'JLP') or row_dict['TokenSymbol'].endswith('-LP'):
+    elif row_dict['TokenSymbol'] in ('UNI-V2', 'SLP', 'pSLP', 'JLP', 'PLP') or row_dict['TokenSymbol'].endswith('-LP'):
         asset = row_dict['TokenSymbol'] + '-' + row_dict['ContractAddress'][0:10]
     else:
         asset = row_dict['TokenSymbol']

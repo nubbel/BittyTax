@@ -157,6 +157,65 @@ STAKING = {
     '0x0e25b918c9fb2fea5d42011d1f4b9f8c61b453e7': [
         # no rewards
     ],
+
+    # SushiSwap: MiniChefV2 (Polygon)
+    '0x0769fd68dfb93167989c6f7254cd0d766fb2841f': [
+        # WMATIC
+        '0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270',
+        # SUSHI
+        '0x0b3f868e0be5597d5db7feb59e1cadbb0fdda50a',
+    ],
+
+    # StakingRewards (Polygon)
+    '0x7ca29f0db5db8b88b332aa1d67a2e89dfec85e7e': [
+        # QUICK
+        '0x831753dd7087cac61ab5644b308642cc1c33dc13',
+    ],
+
+    # Adamant lock (Polygon)
+    '0x920f22e1e5da04504b765f8110ab96a20e6408bd': [
+        # WMATIC
+        '0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270',
+        # QUICK
+        '0x831753dd7087cac61ab5644b308642cc1c33dc13',
+        # ADDY
+        '0xc3fdbadc7c795ef1d6ba111e06ff8f16a20ea539',
+        # dQUICK
+        '0xf28164a485b0b2c90639e47b0f377b4a438a16b1',
+    ],
+
+    # Adamant Finance: Locked ADDY Boost
+    '0xc5bcd23f21b6288417eb6c760f8ac0fbb4bb8a56': [
+        # WMATIC
+        '0x0d500b1d8e8ef31e21c99d1db9a6444d3adf1270',
+        # QUICK
+        '0x831753dd7087cac61ab5644b308642cc1c33dc13',
+        # ADDY
+        '0xc3fdbadc7c795ef1d6ba111e06ff8f16a20ea539',
+        # dQUICK
+        '0xf28164a485b0b2c90639e47b0f377b4a438a16b1',
+    ],
+
+    # Adamant Vault
+    '0x80e0378911d3f2e9ef9bbe782b4c2556c79d7fd3': [],
+
+    # Adamant Vault
+    '0x5c40cd282c6c80ab0d80bfb9367a4ad877fd2a44': [],
+
+    # Adamant Vault
+    '0x4dbd2ca9870f8d43116fc234c9f5ddbb373b0a43': [],
+
+    # Adamant Vault
+    '0x5c40cd282c6c80ab0d80bfb9367a4ad877fd2a44': [],
+
+    # Adamant Vault
+    '0x80e0378911d3f2e9ef9bbe782b4c2556c79d7fd3': [],
+
+    # Adamant Vault
+    '0x625252d89cb775ede460a1b03ef1efc33c72b068': [],
+
+    # Adamant Vault
+    '0x079eabca6696a7c755b2436f38eba89019fbb39d': [],
 }
 
 AIRDROPS = {
