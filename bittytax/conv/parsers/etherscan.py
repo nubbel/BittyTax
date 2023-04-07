@@ -43,6 +43,12 @@ TOKENS = {
     '0x6e7a5fafcec6bb1e78bae2a1f0b612012bf14827': 'UNI-V2-WMATIC-USDC',
     '0xadbf1854e5883eb8aa7baf50705338739e558e5b': 'UNI-V2-WMATIC-WETH',
 
+    # Fantom
+    '0xec7178f4c41f346b2721907f5cf7628e388a7a58': 'spLP-WFTM-BOO',
+    '0x30748322b6e34545dbe0788c421886aeb5297789': 'SPIRIT-LP-WFTM-SPIRIT',
+    '0x2a651563c9d3af67ae0388a5c8f89b867038089e': 'spLP-WFTM-TOMB',
+    '0x84311ecc54d7553378c067282940b0fdfb913675': 'sLP-WFTM-ICE',
+
     # Scam tokens
     '0xbc9180be3d8014dd05b53876c487e79d79056022': None,
     '0x5d80a8d8cb80696073e82407968600a37e1dd780': None,
@@ -92,42 +98,70 @@ TOKENS = {
     '0x1c0aaf256f581774e21d1fae64244c6676bff04c': None,
     '0x8888888889953bdaa9a7273ba13c80918823ba71': None,
     '0x68c929e7b8fb06c58494a369f6f088fff28f7c77': None,
+    '0xf8cf7b9b359edc86c5edb3c4ff65f85a4e54cb7b': None,
 }
 
 NETWORKS = {
-    'ETH': {
+    'etherscan': {
+        'asset': 'ETH',
         'name': 'Ethereum',
         'explorer': 'Etherscan',
     },
-    'AVAX': {
+    'snowtrace': {
+        'asset': 'AVAX',
         'name': 'Avalanche',
         'explorer': 'Snowtrace',
     },
-    'xDAI': {
+    'gnosisscan': {
+        'asset': 'xDAI',
         'name': 'Gnosis',
         'explorer': 'Gnosisscan',
     },
-    'MATIC': {
+    'polygonscan': {
+        'asset': 'MATIC',
         'name': 'Polygon',
         'explorer': 'Polygonscan',
     },
+    'ftmscan': {
+        'asset': 'FTM',
+        'name': 'Fantom',
+        'explorer': 'Ftmscan',
+    },
+    'optimisticetherscan': {
+        'asset': 'ETH',
+        'name': 'Optimism',
+        'explorer': 'Optimistic Etherscan',
+    },
+    'arbiscan': {
+        'asset': 'ETH',
+        'name': 'Arbitrum',
+        'explorer': 'Arbiscan',
+    },
+    'moonscan': {
+        'asset': 'GLMR',
+        'name': 'Moonbeam',
+        'explorer': 'Moonscan',
+    },
+    'zkscan': {
+        'asset': 'ETH',
+        'name': 'ZkSync Lite',
+        'explorer': 'Zkscan',
+    },
 }
+
 
 def parse_etherscan(data_row, parser, **kwargs):
     row_dict = data_row.row_dict
     data_row.timestamp = DataParser.parse_timestamp(int(row_dict['UnixTimestamp']))
 
-    native_asset = kwargs['cryptoasset'] if kwargs['cryptoasset'] else 'ETH'
-    if parser.args[0]:
-        native_asset = parser.args[0].group(1)
-
-    network = NETWORKS[native_asset]
+    network = get_network(kwargs['filename'])
+    native_asset = network['asset']
 
     value_in = row_dict[f'Value_IN({native_asset})']
     value_out = row_dict[f'Value_OUT({native_asset})']
     fee = row_dict[f'TxnFee({native_asset})']
 
-    if row_dict['Status'] != '' and row_dict['Status'] != 'Error(1)':
+    if row_dict['Status'] not in ('', '1', 'Error(1)'):
         # Failed transaction
         value_in = value_out = 0
 
@@ -157,6 +191,14 @@ def parse_etherscan(data_row, parser, **kwargs):
                                                  wallet=get_wallet(row_dict['From'], network['name']),
                                                  note=get_note(row_dict))
 
+def get_network(filename):
+    match = re.search(r"raw/(\w+)/", filename.lower())
+    
+    if not match:
+        raise Exception("unknown explorer")
+
+    return NETWORKS[match.group(1)]
+
 def get_wallet(address, network):
     if address.lower() in config.ethereum_wallets:
         return config.ethereum_wallets[address.lower()]
@@ -164,7 +206,7 @@ def get_wallet(address, network):
     return "%s:%s" % (network, address.lower()[0:TransactionOutRecord.WALLET_ADDR_LEN])
 
 def get_note(row_dict):
-    if row_dict['Status'] != '':
+    if row_dict['Status'] not in ('', '1', 'Error(1)'):
         if row_dict.get('Method'):
             return "%s(%s)" % ('Failure' if row_dict['Status'] == 'Error(1)' else 'Cancelled', row_dict['Method'])
         return "Failure"
@@ -178,11 +220,8 @@ def parse_etherscan_internal(data_row, parser, **kwargs):
     row_dict = data_row.row_dict
     data_row.timestamp = DataParser.parse_timestamp(int(row_dict['UnixTimestamp']))
 
-    native_asset = kwargs['cryptoasset'] if kwargs['cryptoasset'] else 'ETH'
-    if parser.args[0]:
-        native_asset = parser.args[0].group(1)
-
-    network = NETWORKS[native_asset]
+    network = get_network(kwargs['filename'])
+    native_asset = network['asset']
 
     value_in = row_dict[f'Value_IN({native_asset})']
     value_out = row_dict[f'Value_OUT({native_asset})']
@@ -209,8 +248,8 @@ def parse_etherscan_tokens(data_row, _parser, **kwargs):
     row_dict = data_row.row_dict
     data_row.timestamp = DataParser.parse_timestamp(int(row_dict['UnixTimestamp']))
 
-    native_asset = kwargs['cryptoasset'] if kwargs['cryptoasset'] else 'ETH'
-    network = NETWORKS[native_asset]
+    network = get_network(kwargs['filename'])
+    native_asset = network['asset']
 
     if row_dict['ContractAddress'] in TOKENS:
         asset = TOKENS[row_dict['ContractAddress']] 
@@ -246,8 +285,8 @@ def parse_etherscan_nfts(data_row, _parser, **kwargs):
     row_dict = data_row.row_dict
     data_row.timestamp = DataParser.parse_timestamp(int(row_dict['UnixTimestamp']))
 
-    native_asset = kwargs['cryptoasset'] if kwargs['cryptoasset'] else 'ETH'
-    network = NETWORKS[native_asset]
+    network = get_network(kwargs['filename'])
+    native_asset = network['asset']
 
     if not 'TokenValue' in row_dict:
         row_dict['TokenValue'] = '1'
@@ -341,6 +380,14 @@ DataParser(
     "Etherscan (ERC-20 Tokens)",
     ['Txhash', 'Blockno', 'UnixTimestamp', 'DateTime', 'From', 'To', 'TokenValue',
      'USDValueDayOfTx', 'ContractAddress', 'TokenName', 'TokenSymbol'],
+    worksheet_name="Tokens",
+    row_handler=parse_etherscan_tokens)
+
+DataParser(
+    DataParser.TYPE_EXPLORER,
+    "Etherscan (ERC-20 Tokens)",
+    ['Txhash', 'UnixTimestamp', 'DateTime', 'From', 'To', 'TokenValue',
+    'USDValueDayOfTx', 'ContractAddress', 'TokenName', 'TokenSymbol'],
     worksheet_name="Tokens",
     row_handler=parse_etherscan_tokens)
 

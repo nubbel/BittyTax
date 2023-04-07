@@ -216,6 +216,45 @@ STAKING = {
 
     # Adamant Vault
     '0x079eabca6696a7c755b2436f38eba89019fbb39d': [],
+
+    # SpookySwap: MasterChef LP Staking Pool
+    '0x2b2929e785374c651a81a63878ab22742656dcdd': [
+        # BOO
+        '0x841fad6eae12c286d1fd18d1d525dffa75c7effe',
+    ],
+
+    # SpiritSwap: MasterChef LP Staking Poo
+    '0x9083ea3756bde6ee6f27a6e996806fbd37f6f093': [
+        # SPIRIT
+        '0x5cc61a78f164885776aa610fb0fe1257df78e59b',
+    ],
+
+    # Spooky Swap: IFO
+    '0xacaca07e398d4946ad12232f40f255230e73ca72': [
+        # BOO
+        '0x841fad6eae12c286d1fd18d1d525dffa75c7effe',
+    ],
+
+    # SpiritSwap: inSpirit Token lock
+    '0x2fbff41a9efaeae77538bd63f1ea489494acdc08': [
+        # inSPIRIT
+        '0x2fbff41a9efaeae77538bd63f1ea489494acdc08',
+    ],
+
+    # SpiritSwap: Gauge
+    '0xefe02cb895b6e061fa227de683c04f3ce19f3a62': [
+        # SPIRIT
+        '0x5cc61a78f164885776aa610fb0fe1257df78e59b',
+    ],
+
+    # SpiritSwap: Fee Distributor
+    '0x18cef75c2b032d7060e9cf96f29adf74a9a17ce6': [
+        # SPIRIT
+        '0x5cc61a78f164885776aa610fb0fe1257df78e59b',
+    ],
+
+    # Adamant (Arbitrum)
+    '0x9d0eb05dd7a62860b280f1a0034b6396c596eff5': [],
 }
 
 AIRDROPS = {
@@ -303,7 +342,16 @@ AIRDROPS = {
     '0xfd97188bcaf9fc0df5ab0a6cca263c3aada1f382': [
         # AGVE
         '0x3a97704a1b25f08aa230ae53b352e2e72ef52843',
-    ]
+    ],
+
+    # Fantom faucet
+    '0xc2fd070eb72547d763399bd5c2ef172c0d9acff4': [],
+
+    # Fantom
+    '0x52569b7a98fcf73c77249e73437980af04b52802': [
+        # LQDR
+        '0xecdbe3937cf6ff27f70480855cfe03254f915b48',
+    ],
 }
 
 def merge_etherscan(data_files):
@@ -402,7 +450,8 @@ def do_merge_etherscan(data_files, staking_addresses, airdrop_addresses):
                 do_fee_split(t_all, t_fee, fee_quantity, fee_asset)
 
             # Add enter/exit staking txns
-            data_files[TOKENS].data_rows += t_stakings
+            if TOKENS in data_files:
+                data_files[TOKENS].data_rows += t_stakings
 
             merge = True
 
