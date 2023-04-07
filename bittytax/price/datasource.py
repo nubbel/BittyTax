@@ -30,7 +30,7 @@ class DataSourceBase(object):
     USER_AGENT = 'BittyTax/%s Python/%s %s/%s' % (__version__,
                                                   platform.python_version(),
                                                   platform.system(), platform.release())
-    TIME_OUT = 30
+    TIME_OUT = 120
 
     def __init__(self, no_persist=False):
         self.assets = {}
