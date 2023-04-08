@@ -920,3 +920,39 @@ class SushiswapSubgraph(DataSourceBase):
         }, timestamp)
 
         return 'USD'
+
+class Alias(DataSourceBase):
+    def __init__(self, no_persist=False):
+        super(Alias, self).__init__(no_persist=no_persist)
+
+        for symbol in config.data_source_select:
+            for ds in config.data_source_select[symbol]:
+                if ds.upper().startswith(self.name().upper() + ':'):
+                    _, asset_id, name = ds.split(':')
+                    self.ids[asset_id] = {
+                        'name': name,
+                        'symbol': symbol,
+                    }
+                    self._add_asset(symbol, ds)
+
+    def get_latest(self, asset, quote, asset_id=None):
+        if asset_id is None:
+            asset_id = self.assets[asset]['id']       
+
+        return Decimal(1), asset_id
+
+
+    def get_historical(self, asset, quote, timestamp, asset_id=None):
+        if not asset_id:
+            asset_id = self.assets[asset]['id']
+
+
+        pair = self.pair(asset, asset_id)
+        self.update_prices(pair, {
+            timestamp.strftime('%Y-%m-%d'): {
+                'price': Decimal(1),
+                'url': urllib.parse.quote_plus("data:text/plain;charset=utf-8,1 %s = 1 %s" % (asset, asset_id)),
+            }
+        }, timestamp)
+
+        return asset_id
