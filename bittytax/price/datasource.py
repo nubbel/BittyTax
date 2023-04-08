@@ -423,8 +423,14 @@ class Kraken(DataSourceBase):
         self.ids = {
             'ETH2.SETH': {
                 'symbol': 'ETH2',
-                'name': 'Ethereum 2.0'
-            }
+                'name': 'Ethereum 2.0',
+                'quote': 'ETH',
+            },
+            'GLMRUSD': {
+                'symbol': 'GLMR',
+                'name': 'Moonbeam',
+                'quote': 'USD',
+            },
         }
 
         self.assets = {
@@ -441,31 +447,39 @@ class Kraken(DataSourceBase):
         if asset_id is None:
             asset_id = self.assets[asset]['id']
 
-        url = "https://api.kraken.com/0/public/Ticker?pair=ETH2.SETH"
+        quote = self.ids[asset_id]['quote']
+
+        url = "https://api.kraken.com/0/public/Ticker?pair=%s" % asset_id
 
         json_resp = self.get_json(url)
 
-        return Decimal(json_resp['result']['ETH2.SETH']['c'][0]) if 'result' in json_resp else None, 'ETH'
+        if 'result' in json_resp:
+            return Decimal(json_resp['result'][asset_id]['c'][0]), quote
+        
+        return None, quote
 
     def get_historical(self, asset, quote, timestamp, asset_id=None):
         if asset_id is None:
             asset_id = self.assets[asset]['id']
 
-        url = "https://api.kraken.com/0/public/OHLC?pair=ETH2.SETH&interval=1440&since=%d" % (
+        quote = self.ids[asset_id]['quote']
+
+        url = "https://api.kraken.com/0/public/OHLC?pair=%s&interval=1440&since=%d" % (
+            asset_id,
             self.epoch_time(timestamp) - 86400 # make sure requested timestamp is included
         )
         json_resp = self.get_json(url)
 
         if 'result' in json_resp:
-            pair = self.pair(asset, 'ETH')
+            pair = self.pair(asset, quote)
             self.update_prices(pair,
                                {datetime.utcfromtimestamp(ohlc[0]).strftime('%Y-%m-%d'): {
                                    'price': Decimal(ohlc[1]),
                                    'url': url,
-                                } for ohlc in json_resp['result']['ETH2.SETH']},
+                                } for ohlc in json_resp['result'][asset_id]},
                                timestamp)
 
-        return 'ETH'
+        return quote
 
 class Blockscout(DataSourceBase):
     def __init__(self, no_persist=False):
