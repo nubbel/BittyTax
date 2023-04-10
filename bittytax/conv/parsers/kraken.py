@@ -17,7 +17,8 @@ QUOTE_ASSETS = ['AUD', 'CAD', 'CHF', 'DAI', 'DOT', 'ETH', 'EUR', 'GBP', 'JPY', '
 ALT_ASSETS = {'KFEE': 'FEE', 'XETC': 'ETC', 'XETH': 'ETH', 'XLTC': 'LTC', 'XMLN': 'MLN',
               'XREP': 'REP', 'XXBT': 'XBT', 'XXDG': 'XDG', 'XXLM': 'XLM', 'XXMR': 'XMR',
               'XXRP': 'XRP', 'XZEC': 'ZEC', 'ZAUD': 'AUD', 'ZCAD': 'CAD', 'ZEUR': 'EUR',
-              'ZGBP': 'GBP', 'ZJPY': 'JPY', 'ZUSD': 'USD', 'LUNA': 'LUNC', 'LUNA2': 'LUNA'}
+              'ZGBP': 'GBP', 'ZJPY': 'JPY', 'ZUSD': 'USD', 'LUNA': 'LUNC', 'LUNA2': 'LUNA',
+              'UST': 'USTC',}
 
 STAKING_ASSETS = {'XTZ.S': 'XTZ', 'DOT.S': 'DOT', 'DOT.P': 'DOT', 'ATOM.S': 'ATOM', 'ETH2.S': 'ETH2', 'SOL.S': 'SOL'}
 
